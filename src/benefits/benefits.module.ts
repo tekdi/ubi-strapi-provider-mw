@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
-import { BenefitsController } from './benefits.controller';
+import { HttpModule } from '@nestjs/axios';
 import { BenefitsService } from './benefits.service';
+import { ConfigService } from '@nestjs/config';
+import { BenefitsController } from './benefits.controller';
 
 @Module({
   controllers: [BenefitsController],
-  providers: [BenefitsService]
+  imports: [HttpModule],
+  providers: [BenefitsService, ConfigService],
+  exports: [BenefitsService,],
 })
-export class BenefitsModule {}
+export class BenefitsModule { }

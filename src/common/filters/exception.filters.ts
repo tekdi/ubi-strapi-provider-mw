@@ -6,32 +6,60 @@ import {
     HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { AxiosError } from 'axios';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
     constructor(private readonly apiId?: string) { }
 
     catch(
-        exception: Error | HttpException,
+        exception: Error | HttpException | AxiosError,
         host: ArgumentsHost,
     ) {
-        console.log('exception', exception);
+
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
         const request = ctx.getRequest<Request>();
 
-        const status =
-            exception instanceof HttpException ? exception.getStatus() : 500;
+        // Default status code
+        let status = 500;
+        let errorMessage = 'INTERNAL_SERVER_ERROR';
 
+        // Handle HttpException
         if (exception instanceof HttpException) {
-            const statusCode = exception.getStatus();
-
-            return response.status(statusCode).json((exception.getResponse() as any)?.message);
+            status = exception.getStatus();
+            errorMessage = (exception.getResponse() as any)?.message || exception.message;
         }
 
-        const errorMessage =
-            exception?.message || 'INTERNAL_SERVER_ERROR';
+        // Handle AxiosError
+        else if (exception instanceof AxiosError) {
+            console.log('AxiosError:', exception);
+            status = exception.response?.status || 500;
+            errorMessage = exception.response?.data || exception.message || 'AXIOS_ERROR';
+        }
 
-        return response.status(status).json(errorMessage);
+        // Handle other exceptions
+        else {
+            errorMessage = exception?.message || 'INTERNAL_SERVER_ERROR';
+        }
+
+        // Log the error
+        console.error({
+            status,
+            errorMessage,
+            path: request.url,
+            method: request.method,
+            timestamp: new Date().toISOString(),
+        });
+
+        // Send the response
+        return response.status(status).json({
+            statusCode: status,
+            message: errorMessage,
+            path: request.url,
+            timestamp: new Date().toISOString(),
+        });
+
+
     }
 }

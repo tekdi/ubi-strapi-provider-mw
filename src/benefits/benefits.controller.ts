@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseFilters } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseFilters } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BenefitsService } from './benefits.service';
@@ -9,7 +9,18 @@ import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 export class BenefitsController {
 
     constructor(private readonly benefitsService: BenefitsService) { }
- 
+
+    @UseFilters(new AllExceptionsFilter())
+    @ApiOperation({
+        summary: 'Get Benefits by ID',
+        description: 'Fetch benefits by their unique identifier.',
+    })
+    @Get('getById/:docid')
+    @HttpCode(HttpStatus.OK)
+    getBenefitsById(@Param('docid') id: string): any {
+        return this.benefitsService.getBenefitsById(id);
+    }
+
     @UseFilters(new AllExceptionsFilter())
     @Post('search')
     @HttpCode(HttpStatus.OK)
@@ -18,7 +29,6 @@ export class BenefitsController {
         description: 'Search for benefits based on the provided context and message.',
     })
     searchBenefits(@Body() searchRequestDto: SearchRequestDto): any {
-        // Mock response for now
         return this.benefitsService.searchBenefits(searchRequestDto);
     }
 }
