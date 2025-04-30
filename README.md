@@ -1,0 +1,1 @@
+# ubi-strapi-provider-mw
