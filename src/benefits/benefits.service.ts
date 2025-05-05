@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { BENEFIT_CONSTANTS } from 'src/benefit.contants';
+import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
