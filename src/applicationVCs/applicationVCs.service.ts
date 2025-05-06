@@ -7,7 +7,7 @@ export class ApplicationVCsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Create a new ApplicationVC
-  async create(data: Prisma.ApplicationVCsCreateInput) {
+  async create(data: Prisma.ApplicationVCsUncheckedCreateInput) {
     return this.prisma.applicationVCs.create({
       data,
     });
