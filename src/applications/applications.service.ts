@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { ListApplicationsDto } from './dto/list-applications.dto';
 
 @Injectable()
 export class ApplicationsService {
@@ -14,22 +16,34 @@ export class ApplicationsService {
   }
 
   // Get all applications
-  async findAll() {
-    return this.prisma.applications.findMany({
-      include: {
-        applicationFiles: true, // Include related ApplicationFiles
-      },
+  async findAll(listDto: ListApplicationsDto) {
+    const where: Prisma.ApplicationsWhereInput = {};
+    if (listDto.benefitId) {
+      where.benefitId = listDto.benefitId;
+    }
+    
+   const data = await this.prisma.applications.findMany({
+      where,
     });
+    if (!data.length) {
+      throw new NotFoundException('Applications not found');
+    }
+    return data;
+    
   }
 
   // Get a single application by ID
   async findOne(id: number) {
-    return this.prisma.applications.findUnique({
+    const application = await this.prisma.applications.findUnique({
       where: { id },
       include: {
-        applicationFiles: true, // Include related ApplicationFiles
-      },
+        applicationFiles: true
+      }
     });
+    if(!application){
+      throw new NotFoundException('Applications not found');
+    }
+    return application;
   }
 
   // Update an application by ID
@@ -38,5 +52,28 @@ export class ApplicationsService {
       where: { id },
       data,
     });
+  }
+
+  async updateStatus(id: number, updateStatusDto: UpdateApplicationStatusDto) {
+    const application = await this.prisma.applications.findUnique({
+      where: { id },
+    });
+
+    if (!application) {
+      throw new NotFoundException(`Application with ID ${id} not found`);
+    }
+
+    const updatedApplication = await this.prisma.applications.update({
+      where: { id },
+      data: {
+        status: updateStatusDto.status,
+      },
+    });
+
+    return {
+      statusCode: 200,
+      status: 'success',
+      message: `Application ${updateStatusDto.status} successfully`,
+    };
   }
 }
