@@ -15,15 +15,24 @@ datasource db {
 }
 
 model Applications {
-  id             Int              @id @default(autoincrement())
-  benefitId      String           @unique
-  status         String
-  applicationVCs ApplicationVCs[] @relation("ApplicationsToApplicationVCs")
+  id                Int              @id @default(autoincrement())
+  benefitId         String           @unique
+  status            String
+  applicationData   Json             // form fields saved as they are dynamic 
+  customerId        String?          
+  bapId             String?          
+  calculatedAmount  String?          
+  finalAmount       String?         
+  applicationVCs    ApplicationVCs[] @relation("ApplicationsToApplicationVCs")
+  createdAt         DateTime         @default(now()) // Automatically set on creation
+  updatedAt         DateTime         @updatedAt      // Automatically updated on modification
 }
 
 model ApplicationVCs {
   id                 Int          @id @default(autoincrement())
   applicationFilesId String
-  application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationVCs")
   applicationId      Int
+  application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationVCs")
+  createdAt          DateTime     @default(now()) // Automatically set on creation
+  updatedAt          DateTime     @updatedAt      // Automatically updated on modification
 }
