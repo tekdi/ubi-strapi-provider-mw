@@ -3,28 +3,28 @@ import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
-export class ApplicationVCsService {
+export class ApplicationFilesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Create a new ApplicationVC
-  async create(data: Prisma.ApplicationVCsUncheckedCreateInput) {
-    return this.prisma.applicationVCs.create({
+  // Create a new ApplicationFile
+  async create(data: Prisma.ApplicationFilesUncheckedCreateInput) {
+    return this.prisma.applicationFiles.create({
       data,
     });
   }
 
-  // Get all ApplicationVCs
+  // Get all ApplicationFiles
   async findAll() {
-    return this.prisma.applicationVCs.findMany({
+    return this.prisma.applicationFiles.findMany({
       include: {
         application: true, // Include related Applications
       },
     });
   }
 
-  // Get a single ApplicationVC by ID
+  // Get a single ApplicationFile by ID
   async findOne(id: number) {
-    return this.prisma.applicationVCs.findUnique({
+    return this.prisma.applicationFiles.findUnique({
       where: { id },
       include: {
         application: true, // Include related Applications
@@ -32,9 +32,9 @@ export class ApplicationVCsService {
     });
   }
 
-  // Update an ApplicationVC by ID
-  async update(id: number, data: Prisma.ApplicationVCsUpdateInput) {
-    return this.prisma.applicationVCs.update({
+  // Update an ApplicationFile by ID
+  async update(id: number, data: Prisma.ApplicationFilesUpdateInput) {
+    return this.prisma.applicationFiles.update({
       where: { id },
       data,
     });

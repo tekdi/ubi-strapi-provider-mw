@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ApplicationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Create a new application
   async create(data: Prisma.ApplicationsCreateInput) {
@@ -17,7 +17,7 @@ export class ApplicationsService {
   async findAll() {
     return this.prisma.applications.findMany({
       include: {
-        applicationVCs: true, // Include related ApplicationVCs
+        applicationFiles: true, // Include related ApplicationFiles
       },
     });
   }
@@ -27,7 +27,7 @@ export class ApplicationsService {
     return this.prisma.applications.findUnique({
       where: { id },
       include: {
-        applicationVCs: true, // Include related ApplicationVCs
+        applicationFiles: true, // Include related ApplicationFiles
       },
     });
   }
