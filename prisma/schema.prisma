@@ -23,16 +23,18 @@ model Applications {
   bapId             String?          
   calculatedAmount  String?          
   finalAmount       String?         
-  applicationVCs    ApplicationVCs[] @relation("ApplicationsToApplicationVCs")
+  applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt         DateTime         @default(now()) // Automatically set on creation
   updatedAt         DateTime         @updatedAt      // Automatically updated on modification
 }
 
-model ApplicationVCs {
+model ApplicationFiles {
   id                 Int          @id @default(autoincrement())
-  applicationFilesId String
+  storage            String       
+  filePath           String?       
+  verificationStatus Json?         
   applicationId      Int
-  application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationVCs")
+  application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
   createdAt          DateTime     @default(now()) // Automatically set on creation
   updatedAt          DateTime     @updatedAt      // Automatically updated on modification
 }
