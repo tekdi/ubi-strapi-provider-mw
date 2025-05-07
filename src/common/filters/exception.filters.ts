@@ -31,6 +31,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
             errorMessage = (exception.getResponse() as any)?.message || exception.message;
         }
 
+        // Handle file upload error
+        else if (exception.message === 'You can only upload up to 10 files at a time.') {
+            status = 400;
+            errorMessage = exception.message;
+        }
+
         // Handle AxiosError
         else if (exception instanceof AxiosError) {
             status = exception.response?.status || 500;

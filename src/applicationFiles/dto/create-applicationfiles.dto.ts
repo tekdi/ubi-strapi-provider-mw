@@ -16,4 +16,14 @@ export class CreateApplicationFilesDto {
   })
   @IsObject()
   verificationStatus? : Record<string, any>;
+
+  @ApiProperty({
+    description: 'The files to upload',
+    type: 'array',
+    items: {
+      type: 'string',
+      format: 'binary',
+    },
+  })
+  files: any[];
 }

@@ -7,8 +7,8 @@ export class ApplicationFilesService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Create a new ApplicationFile
-  async create(data: Prisma.ApplicationFilesUncheckedCreateInput) {
-    return this.prisma.applicationFiles.create({
+  async create(data: Prisma.ApplicationFilesUncheckedCreateInput[]) {
+    return this.prisma.applicationFiles.createMany({
       data,
     });
   }
