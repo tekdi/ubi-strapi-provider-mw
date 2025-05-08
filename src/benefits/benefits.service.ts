@@ -14,6 +14,8 @@ import { response } from 'express';
 export class BenefitsService {
   private readonly strapiUrl: string;
   private readonly strapiToken: string;
+  private readonly urlExtension: string = '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
+  
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -34,7 +36,7 @@ export class BenefitsService {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+        `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -53,7 +55,7 @@ export class BenefitsService {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+        `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +80,7 @@ export class BenefitsService {
 
   async selectBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export class BenefitsService {
 
   async getBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
