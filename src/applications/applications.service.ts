@@ -17,19 +17,13 @@ export class ApplicationsService {
 
   // Get all applications
   async findAll(listDto: ListApplicationsDto) {
-    const where: Prisma.ApplicationsWhereInput = {};
-    if (listDto.benefitId) {
-      where.benefitId = listDto.benefitId;
-    }
-    
-   const data = await this.prisma.applications.findMany({
-      where,
+    const data = await this.prisma.applications.findMany({
+      where: {
+        benefitId: listDto.benefitId
+      },
     });
-    if (!data.length) {
-      throw new NotFoundException('Applications not found');
-    }
+   
     return data;
-    
   }
 
   // Get a single application by ID

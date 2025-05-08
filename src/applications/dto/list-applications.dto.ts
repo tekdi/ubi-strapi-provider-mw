@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min } from 'class-validator';
+import { IsOptional, IsInt, Min, IsString, IsNotEmpty } from 'class-validator';
 // import { Type } from 'class-transformer';
 
 export class ListApplicationsDto {
@@ -31,9 +31,10 @@ export class ListApplicationsDto {
 
   @ApiProperty({
     description: 'Filter by benefit ID',
-    required: false,
+    required: true,
     example: 'benefit-123'
   })
-  @IsOptional()
-  benefitId?: string;
+  @IsString()
+  @IsNotEmpty()
+  benefitId: string;
 } 
