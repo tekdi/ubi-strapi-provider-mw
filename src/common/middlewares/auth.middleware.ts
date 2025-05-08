@@ -63,10 +63,8 @@ export class AuthMiddleware implements NestMiddleware {
         const decoded: any = jwtDecode(authToken);
         let userId: string = String(decoded.id);
 
-        console.log('userId---->>>>', userId);
-
         // Get the middleware user id from the strapi user id
-        let user = await this.prisma.users.findUnique({
+        const user = await this.prisma.users.findUnique({
           where: { s_id: userId },
         });
 
