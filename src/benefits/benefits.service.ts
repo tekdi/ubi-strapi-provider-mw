@@ -8,6 +8,7 @@ import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { response } from 'express';
 
 @Injectable()
 export class BenefitsService {
@@ -27,6 +28,25 @@ export class BenefitsService {
         'Environment variables STRAPI_URL and STRAPI_TOKEN must be set',
       );
     }
+  }
+
+  async getBenefits(searchRequest: SearchRequestDto): Promise<any> {
+    if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
+      // Example: Call an external API
+      const response = await this.httpService.axiosRef.get(
+        `${this.strapiUrl}/benefits?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.strapiToken}`,
+          },
+        },
+      );
+
+      return response;
+    }
+
+    throw new BadRequestException('Invalid domain provided');
   }
 
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
@@ -56,7 +76,7 @@ export class BenefitsService {
     throw new BadRequestException('Invalid domain provided');
   }
 
-  async getBenefitsById(id: string): Promise<any> {
+  async selectBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
       {
@@ -74,6 +94,20 @@ export class BenefitsService {
     }
 
     return mappedResponse;
+  }
+
+  async getBenefitsById(id: string): Promise<any> {
+    const response = await this.httpService.axiosRef.get(
+      `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.strapiToken}`,
+        },
+      },
+    );
+
+    return response;
   }
 
   async transformScholarshipsToONDCFormat(apiResponseArray) {

@@ -38,6 +38,31 @@ export class BenefitsController {
       'Search for benefits based on the provided context and message.',
   })
   searchBenefits(@Body() searchRequestDto: SearchRequestDto): any {
+    return this.benefitsService.getBenefits(searchRequestDto);
+  }
+
+  // Network api's routes
+
+  @UseFilters(new AllExceptionsFilter())
+  @Post('dsep/search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Search Benefits',
+    description:
+      'Search for benefits based on the provided context and message.',
+  })
+  searchBenefitsNetwork(@Body() searchRequestDto: SearchRequestDto): any {
     return this.benefitsService.searchBenefits(searchRequestDto);
+  }
+
+  @UseFilters(new AllExceptionsFilter())
+  @ApiOperation({
+    summary: 'Get Benefits by ID',
+    description: 'Fetch benefits by their unique identifier.',
+  })
+  @Get('dsep/select/:id')
+  @HttpCode(HttpStatus.OK)
+  selectBenefitsNetwork(@Param('docid') id: string): any {
+    return this.benefitsService.selectBenefitsById(id);
   }
 }
