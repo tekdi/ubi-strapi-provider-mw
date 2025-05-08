@@ -62,7 +62,7 @@ export class BenefitsController {
   })
   @Get('dsep/select/:id')
   @HttpCode(HttpStatus.OK)
-  selectBenefitsNetwork(@Param('docid') id: string): any {
+  selectBenefitsNetwork(@Param('id') id: string): any {
     return this.benefitsService.selectBenefitsById(id);
   }
 }
