@@ -23,9 +23,9 @@ export class BenefitsController {
     summary: 'Get Benefits by ID',
     description: 'Fetch benefits by their unique identifier.',
   })
-  @Get('select/:id')
+  @Get('getById/:docid')
   @HttpCode(HttpStatus.OK)
-  getBenefitsById(@Param('id') id: string): any {
+  getBenefitsById(@Param('docid') id: string): any {
     return this.benefitsService.getBenefitsById(id);
   }
 

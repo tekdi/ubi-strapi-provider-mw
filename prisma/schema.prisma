@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Applications {
+  id                Int              @id @default(autoincrement())
+  benefitId         String           @unique
+  status            String
+  applicationData   Json             // form fields saved as they are dynamic 
+  customerId        String?          
+  bapId             String?          
+  calculatedAmount  String?          
+  finalAmount       String?         
+  applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
+  createdAt         DateTime         @default(now()) // Automatically set on creation
+  updatedAt         DateTime         @updatedAt      // Automatically updated on modification
+}
+
+model ApplicationFiles {
+  id                 Int          @id @default(autoincrement())
+  storage            String       
+  filePath           String?       
+  verificationStatus Json?         
+  applicationId      Int
+  application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
+  createdAt          DateTime     @default(now()) // Automatically set on creation
+  updatedAt          DateTime     @updatedAt      // Automatically updated on modification
+}

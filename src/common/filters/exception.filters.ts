@@ -5,6 +5,7 @@ import {
     HttpException,
     HttpStatus,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { AxiosError } from 'axios';
 
@@ -16,7 +17,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception: Error | HttpException | AxiosError,
         host: ArgumentsHost,
     ) {
-
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
         const request = ctx.getRequest<Request>();
@@ -33,11 +33,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         // Handle AxiosError
         else if (exception instanceof AxiosError) {
-            console.log('AxiosError:', exception);
             status = exception.response?.status || 500;
             errorMessage = exception.response?.data || exception.message || 'AXIOS_ERROR';
         }
-
+        // Handle PrismaClientKnownRequestError
+        else if (exception instanceof Prisma.PrismaClientValidationError) {
+            status = 400;
+            errorMessage = exception.message || 'PRISMA_CLIENT_ERROR';
+        }
+        // Handle PrismaClientUnknownRequestError
+        else if (exception instanceof Prisma.PrismaClientUnknownRequestError) {
+            status = 500;
+            errorMessage = exception.message || 'PRISMA_CLIENT_UNKNOWN_ERROR';
+        }
+        // Handle PrismaClientInitializationError       
+        else if (exception instanceof Prisma.PrismaClientInitializationError) {
+            status = 500;
+            errorMessage = exception.message || 'PRISMA_CLIENT_INITIALIZATION_ERROR';
+        }
         // Handle other exceptions
         else {
             errorMessage = exception?.message || 'INTERNAL_SERVER_ERROR';
