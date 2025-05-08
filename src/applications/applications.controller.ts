@@ -83,10 +83,9 @@ export class ApplicationsController {
     }
   })
   @ApiResponse({ status: 400, description: 'Bad Request - Status is required' })
-  @UsePipes(new ApplicationStatusValidationPipe())
   async updateStatus(
     @Param('id') id: string,
-    @Body() updateStatusDto: UpdateApplicationStatusDto,
+    @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
   ) {
     return this.applicationsService.updateStatus(Number(id), updateStatusDto);
   }

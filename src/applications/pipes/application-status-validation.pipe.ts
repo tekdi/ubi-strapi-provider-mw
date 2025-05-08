@@ -1,13 +1,13 @@
 import { PipeTransform, Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { ApplicationStatus, UpdateApplicationStatusDto } from '../dto/update-application-status.dto';
+import { ApplicationStatus } from '../dto/update-application-status.dto';
 
 @Injectable()
 export class ApplicationStatusValidationPipe implements PipeTransform {
   private readonly logger = new Logger(ApplicationStatusValidationPipe.name);
 
-  transform(value: any): UpdateApplicationStatusDto {
+  transform(value: any) {
     this.logger.debug(`Received value: ${JSON.stringify(value)}`);
-
+console.log(value,'==========')
     if (!value || typeof value !== 'object') {
       throw new BadRequestException('Request body must be an object');
     }
@@ -25,6 +25,6 @@ export class ApplicationStatusValidationPipe implements PipeTransform {
     }
 
     this.logger.debug('Status validation passed');
-    return { status: status as ApplicationStatus };
+    return value;
   }
 } 
