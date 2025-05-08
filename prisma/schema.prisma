@@ -14,16 +14,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ApplicationStatus {
-  pending
-  approved
-  rejected
-}
-
 model Applications {
   id                Int              @id @default(autoincrement())
   benefitId         String           @unique
-  status            ApplicationStatus
+  status            String
   applicationData   Json             // form fields saved as they are dynamic 
   customerId        String?          
   bapId             String?          

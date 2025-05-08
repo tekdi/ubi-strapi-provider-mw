@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
+import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
+
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
 @Controller('applications')
@@ -81,13 +83,11 @@ export class ApplicationsController {
     }
   })
   @ApiResponse({ status: 400, description: 'Bad Request - Status is required' })
+  @UsePipes(new ApplicationStatusValidationPipe())
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateApplicationStatusDto,
   ) {
-    if (!updateStatusDto.status) {
-      throw new BadRequestException('Status is required');
-    }
     return this.applicationsService.updateStatus(Number(id), updateStatusDto);
   }
 }
