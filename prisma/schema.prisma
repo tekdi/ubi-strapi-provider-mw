@@ -38,3 +38,19 @@ model ApplicationFiles {
   createdAt          DateTime     @default(now()) // Automatically set on creation
   updatedAt          DateTime     @updatedAt      // Automatically updated on modification
 }
+
+model Users {
+  id          Int        @id @default(autoincrement())
+  s_id        String     @unique
+  roles       String[]   // Array of strings to store multiple roles, can be empty
+  s_roles     String[]   // Array of strings to store multiple roles, can be empty
+  first_name  String
+  middle_name String?
+  last_name   String?
+  email       String     @unique
+  phone       String?
+  enabled     Boolean    @default(true)
+  blocked     Boolean    @default(false)
+  createdAt   DateTime   @default(now()) // Automatically set on creation
+  updatedAt   DateTime?  @updatedAt      // Automatically updated on modification
+}
