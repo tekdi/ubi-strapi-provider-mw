@@ -8,7 +8,6 @@ import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
-import { VerifyApplicationVcsRequestDto, VerifyApplicationVcsResponseDto } from '../verifications/dtos';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
@@ -89,19 +88,5 @@ export class ApplicationsController {
     @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
   ) {
     return this.applicationsService.updateStatus(Number(id), updateStatusDto);
-  }
-
-  @Post('/verifyApplicationVcs')
-  @ApiOperation({ summary: 'Verify Verifiable Credentials (VCs) for a specific application' })
-  @ApiBody({ type: VerifyApplicationVcsRequestDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Verification result',
-    type: VerifyApplicationVcsResponseDto,
-  })
-  async verifyApplicationVcs(
-    @Body() verifyApplicationVcsRequestDto: VerifyApplicationVcsRequestDto,
-  ): Promise<VerifyApplicationVcsResponseDto> {
-    return this.applicationsService.verifyApplicationVcs(verifyApplicationVcsRequestDto.applicationId);
   }
 }
