@@ -58,10 +58,10 @@ export class BenefitsController {
     summary: 'Get Benefits by ID',
     description: 'Fetch benefits by their unique identifier.',
   })
-  @Get('dsep/select/:id')
+  @Post('dsep/select')
   @HttpCode(HttpStatus.OK)
-  selectBenefitsNetwork(@Param('id') id: string): any {
-    return this.benefitsService.selectBenefitsById(id);
+  selectBenefitsNetwork(@Body() body): any {
+    return this.benefitsService.selectBenefitsById(body);
   }
 
   @Post('dsep/init')
