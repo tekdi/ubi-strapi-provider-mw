@@ -22,10 +22,10 @@ export class AuthMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers['authorization'];
 
+    // Check if auth header is present if not then skip the middleware
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException(
-        'Missing or malformed Authorization header',
-      );
+      next();
+      return;
     }
 
     if (req.headers.authorization) {

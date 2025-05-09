@@ -4,7 +4,6 @@ import {
   UsePipes,
   ValidationPipe,
   Body,
-  Req,
 } from '@nestjs/common';
 import { LoginDto } from './dto/login-request.dto';
 import { AuthService } from './auth.service';
