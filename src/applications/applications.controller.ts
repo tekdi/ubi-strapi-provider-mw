@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
 import { UpdateApplicationsDto } from './dto/update-applications.dto';
 import { Prisma } from '@prisma/client';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
+import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { ListApplicationsDto } from './dto/list-applications.dto';
+import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
@@ -26,8 +29,9 @@ export class ApplicationsController {
   @Get()
   @ApiOperation({ summary: 'Get all applications' })
   @ApiResponse({ status: 200, description: 'List of applications retrieved successfully' })
-  async findAll() {
-    return this.applicationsService.findAll();
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  async findAll(@Query() listDto: ListApplicationsDto) {
+    return this.applicationsService.findAll(listDto);
   }
 
   // Get a single application by ID
@@ -50,5 +54,39 @@ export class ApplicationsController {
   @ApiResponse({ status: 404, description: 'Application not found' })
   async update(@Param('id') id: string, @Body() data: UpdateApplicationsDto) {
     return this.applicationsService.update(Number(id), data as Prisma.ApplicationsUpdateInput);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({
+    summary: 'Update Application Status',
+    description: 'Update the status of an application (approved or rejected)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Status updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: {
+          type: 'number',
+          example: 200
+        },
+        status: {
+          type: 'string',
+          example: 'success'
+        },
+        message: {
+          type: 'string',
+          example: 'Application approved successfully'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request - Status is required' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
+  ) {
+    return this.applicationsService.updateStatus(Number(id), updateStatusDto);
   }
 }
