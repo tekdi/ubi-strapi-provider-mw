@@ -20,7 +20,8 @@ export class BenefitsService {
   private readonly bapUri: string;
   private readonly bppId: string;
   private readonly bppUri: string;
-  private readonly urlExtension: string = '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
+  private readonly urlExtension: string =
+    '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
 
   constructor(
     private readonly httpService: HttpService,
@@ -36,7 +37,15 @@ export class BenefitsService {
   }
 
   onModuleInit() {
-    if (!this.strapiToken.trim().length || !this.strapiUrl.trim().length || !this.providerUrl.trim().length || !this.bapId.trim().length || !this.bapUri.trim().length || !this.bppId.trim().length || !this.bppUri.trim().length) {
+    if (
+      !this.strapiToken.trim().length ||
+      !this.strapiUrl.trim().length ||
+      !this.providerUrl.trim().length ||
+      !this.bapId.trim().length ||
+      !this.bapUri.trim().length ||
+      !this.bppId.trim().length ||
+      !this.bppUri.trim().length
+    ) {
       throw new InternalServerErrorException(
         'Environment variables STRAPI_URL and STRAPI_TOKEN must be set',
       );
@@ -103,7 +112,8 @@ export class BenefitsService {
     throw new BadRequestException('Invalid domain provided');
   }
 
-  async selectBenefitsById(id: string): Promise<any> {
+  async selectBenefitsById(body: any): Promise<any> {
+    let id = body.message.order.items[0].id;
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
@@ -135,8 +145,9 @@ export class BenefitsService {
       let mappedResponse;
 
       if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
-          [benefitData?.data?.data]);
+        mappedResponse = await this.transformScholarshipsToONDCFormat([
+          benefitData?.data?.data,
+        ]);
       }
 
       const xinput = {
@@ -159,7 +170,8 @@ export class BenefitsService {
         required: true,
       };
 
-      const { id, descriptor, categories, locations, items, rateable }: any = mappedResponse?.message.catalog.providers[0];
+      const { id, descriptor, categories, locations, items, rateable }: any =
+        mappedResponse?.message.catalog.providers[0];
 
       items[0].xinput = xinput;
 
@@ -168,12 +180,12 @@ export class BenefitsService {
         // Ensure the object matches the InitOrderDto type
         providers: [{ id, descriptor, rateable, locations, categories }],
         items,
-      }
+      };
 
       selectDto.context = {
         ...selectDto.context,
         ...mappedResponse?.context,
-        action: 'on_init'
+        action: 'on_init',
       };
       return selectDto;
     } catch (error) {

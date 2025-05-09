@@ -58,16 +58,17 @@ export class BenefitsController {
     summary: 'Get Benefits by ID',
     description: 'Fetch benefits by their unique identifier.',
   })
-  @Get('dsep/select/:id')
+  @Post('dsep/select')
   @HttpCode(HttpStatus.OK)
-  selectBenefitsNetwork(@Param('id') id: string): any {
-    return this.benefitsService.selectBenefitsById(id);
+  selectBenefitsNetwork(@Body() body): any {
+    return this.benefitsService.selectBenefitsById(body);
   }
 
   @Post('dsep/init')
   @ApiOperation({
     summary: 'Initialize Course',
-    description: 'Handles the initialization of a course based on the provided data.',
+    description:
+      'Handles the initialization of a course based on the provided data.',
   })
   async init(@Body() initRequestDto: InitRequestDto) {
     return this.benefitsService.init(initRequestDto);
