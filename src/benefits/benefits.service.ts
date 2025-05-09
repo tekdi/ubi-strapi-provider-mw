@@ -9,21 +9,34 @@ import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { response } from 'express';
+import { InitRequestDto } from './dto/init-request.dto';
 
 @Injectable()
 export class BenefitsService {
   private readonly strapiUrl: string;
   private readonly strapiToken: string;
+  private readonly providerUrl: string;
+  private readonly bapId: string;
+  private readonly bapUri: string;
+  private readonly bppId: string;
+  private readonly bppUri: string;
+  private readonly urlExtension: string = '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
     this.strapiUrl = this.configService.get<string>('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
+    this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
+    this.bapId = this.configService.get('BAP_ID') || '';
+    this.bapUri = this.configService.get('BAP_URI') || '';
+    this.bppId = this.configService.get('BPP_ID') || '';
+    this.bppUri = this.configService.get('BPP_URI') || '';
   }
 
   onModuleInit() {
-    if (!this.strapiToken.trim().length || !this.strapiUrl.trim().length) {
+    if (!this.strapiToken.trim().length || !this.strapiUrl.trim().length || !this.providerUrl.trim().length || !this.bapId.trim().length || !this.bapUri.trim().length || !this.bppId.trim().length || !this.bppUri.trim().length) {
       throw new InternalServerErrorException(
         'Environment variables STRAPI_URL and STRAPI_TOKEN must be set',
       );
@@ -34,7 +47,7 @@ export class BenefitsService {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+        `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -49,11 +62,25 @@ export class BenefitsService {
     throw new BadRequestException('Invalid domain provided');
   }
 
+  async getBenefitsById(id: string): Promise<any> {
+    const response = await this.httpService.axiosRef.get(
+      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.strapiToken}`,
+        },
+      },
+    );
+
+    return response;
+  }
+
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+        `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +105,7 @@ export class BenefitsService {
 
   async selectBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
+      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -96,18 +123,63 @@ export class BenefitsService {
     return mappedResponse;
   }
 
-  async getBenefitsById(id: string): Promise<any> {
-    const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.strapiToken}`,
-        },
-      },
-    );
+  async init(selectDto: InitRequestDto): Promise<any> {
+    try {
+      let schemaJson;
+      const response = [];
+      const benefitId = selectDto.message.order.items[0].id;
 
-    return response;
+      // Fetch benefit data from the strapi
+      const benefitData = await this.getBenefitsById(benefitId);
+
+      let mappedResponse;
+
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToONDCFormat(
+          [benefitData?.data?.data]);
+      }
+
+      const xinput = {
+        head: {
+          descriptor: {
+            name: 'Application Form',
+          },
+          index: {
+            min: 0,
+            cur: 0,
+            max: 1,
+          },
+          headings: ['Personal Details'],
+        },
+        form: {
+          url: `${this.providerUrl}/${benefitId}/apply`, // React route for the benefit ID
+          mime_type: 'text/html',
+          resubmit: false,
+        },
+        required: true,
+      };
+
+      const { id, descriptor, categories, locations, items, rateable }: any = mappedResponse?.message.catalog.providers[0];
+
+      items[0].xinput = xinput;
+
+      selectDto.message.order = {
+        ...selectDto.message.order,
+        // Ensure the object matches the InitOrderDto type
+        providers: [{ id, descriptor, rateable, locations, categories }],
+        items,
+      }
+
+      selectDto.context = {
+        ...selectDto.context,
+        ...mappedResponse?.context,
+        action: 'on_init'
+      };
+      return selectDto;
+    } catch (error) {
+      console.error('Error in handleInit:', error);
+      throw new InternalServerErrorException('Failed to initialize benefit');
+    }
   }
 
   async transformScholarshipsToONDCFormat(apiResponseArray) {
@@ -116,7 +188,7 @@ export class BenefitsService {
     }
 
     const items = await Promise.all(
-      apiResponseArray.map(async (scholarship) => {
+      apiResponseArray.map(async (benefit) => {
         const {
           id,
           title,
@@ -130,7 +202,7 @@ export class BenefitsService {
           sponsoringEntities,
           applicationForm,
           documentId,
-        } = scholarship;
+        } = benefit;
 
         const [
           eligibilityTags,
@@ -186,10 +258,10 @@ export class BenefitsService {
         domain: 'onest:financial-support',
         action: 'on_search',
         version: '1.1.0',
-        bap_id: 'sample.bap.io',
-        bap_uri: 'https://sample.bap.io',
-        bpp_id: 'sample.bpp.io',
-        bpp_uri: 'https://sample.bpp.io',
+        bap_id: this.bapId,
+        bap_uri: this.bapUri,
+        bpp_id: this.bppId,
+        bpp_uri: this.bppUri,
         transaction_id: uuidv4(),
         message_id: uuidv4(),
         timestamp: new Date().toISOString(),
