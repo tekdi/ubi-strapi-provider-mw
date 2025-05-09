@@ -367,8 +367,8 @@ export class BenefitsService {
       },
       list: eligibility.map((e) => ({
         descriptor: {
-          code: e.type,
-          name: e.type.charAt(0).toUpperCase() + e.type.slice(1),
+          code: e.evidence,
+          name: e.type.charAt(0).toUpperCase() + e.type.slice(1) + ' - ' + e.evidence,
           short_desc: e.description,
         },
         value: JSON.stringify(e),
