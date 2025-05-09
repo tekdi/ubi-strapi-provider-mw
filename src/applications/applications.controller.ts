@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
@@ -29,7 +29,7 @@ export class ApplicationsController {
   @Get()
   @ApiOperation({ summary: 'Get all applications' })
   @ApiResponse({ status: 200, description: 'List of applications retrieved successfully' })
-  
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async findAll(@Query() listDto: ListApplicationsDto) {
     return this.applicationsService.findAll(listDto);
   }
