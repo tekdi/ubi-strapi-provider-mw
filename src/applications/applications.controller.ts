@@ -56,7 +56,7 @@ export class ApplicationsController {
     return this.applicationsService.update(Number(id), data as Prisma.ApplicationsUpdateInput);
   }
 
-  @Patch(':id/status')
+  @Patch(':id/status')  
   @ApiOperation({
     summary: 'Update Application Status',
     description: 'Update the status of an application (approved or rejected)',
