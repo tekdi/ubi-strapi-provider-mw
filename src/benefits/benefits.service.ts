@@ -76,7 +76,8 @@ export class BenefitsService {
     throw new BadRequestException('Invalid domain provided');
   }
 
-  async selectBenefitsById(id: string): Promise<any> {
+  async selectBenefitsById(body: any): Promise<any> {
+    let id = body.message.order.items[0].id;
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*`,
       {
