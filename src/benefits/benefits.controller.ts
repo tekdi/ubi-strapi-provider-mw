@@ -66,8 +66,8 @@ export class BenefitsController {
 
   @Post('dsep/init')
   @ApiOperation({
-    summary: 'Initialize Course',
-    description: 'Handles the initialization of a course based on the provided data.',
+    summary: 'Initialize',
+    description: 'Handles the initialization based on the provided data.',
   })
   async init(@Body() initRequestDto: InitRequestDto) {
     return this.benefitsService.init(initRequestDto);

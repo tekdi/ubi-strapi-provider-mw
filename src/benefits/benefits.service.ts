@@ -79,6 +79,7 @@ export class BenefitsService {
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
+      console.log('searchRequest', searchRequest);
       const response = await this.httpService.axiosRef.get(
         `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
@@ -92,7 +93,7 @@ export class BenefitsService {
       let mappedResponse;
 
       if (response?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
           response?.data?.data,
         );
       }
@@ -104,6 +105,7 @@ export class BenefitsService {
   }
 
   async selectBenefitsById(id: string): Promise<any> {
+
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
@@ -115,7 +117,7 @@ export class BenefitsService {
     );
     let mappedResponse;
     if (response?.data) {
-      mappedResponse = await this.transformScholarshipsToONDCFormat([
+      mappedResponse = await this.transformScholarshipsToOnestFormat([
         response?.data?.data,
       ]);
     }
@@ -125,8 +127,6 @@ export class BenefitsService {
 
   async init(selectDto: InitRequestDto): Promise<any> {
     try {
-      let schemaJson;
-      const response = [];
       const benefitId = selectDto.message.order.items[0].id;
 
       // Fetch benefit data from the strapi
@@ -135,7 +135,7 @@ export class BenefitsService {
       let mappedResponse;
 
       if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
           [benefitData?.data?.data]);
       }
 
@@ -182,7 +182,7 @@ export class BenefitsService {
     }
   }
 
-  async transformScholarshipsToONDCFormat(apiResponseArray) {
+  async transformScholarshipsToOnestFormat(apiResponseArray) {
     if (!Array.isArray(apiResponseArray)) {
       throw new Error('Expected an array of scholarships');
     }
