@@ -135,6 +135,7 @@ export class BenefitsService {
   }
 
   async init(selectDto: InitRequestDto): Promise<any> {
+    this.checkBapIdAndUri(selectDto?.context?.bap_id, selectDto?.context?.bap_uri);
     try {
       const benefitId = selectDto.message.order.items[0].id;
 
