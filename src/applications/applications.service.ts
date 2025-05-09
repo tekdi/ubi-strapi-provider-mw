@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
+import { VerifyApplicationVcsResponseDto } from '../verifications/dtos';
 
 @Injectable()
 export class ApplicationsService {
@@ -68,6 +69,25 @@ export class ApplicationsService {
       statusCode: 200,
       status: 'success',
       message: `Application ${updateStatusDto.status} successfully`,
+    };
+  }
+
+  async verifyApplicationVcs(applicationId: string): Promise<VerifyApplicationVcsResponseDto> {
+    // Mock: Fetch VCs from the database for the given applicationId
+    const verifiableCredentials = ['VC1', 'VC2', 'VC3']; // Replace with actual DB query
+
+    // Mock: Perform verification logic
+    const isVerified = verifiableCredentials.length > 0; // Replace with actual verification logic
+
+    // Mock: Update verification status in the database
+    // Replace with actual DB update logic
+
+    // Return structured response
+    return {
+      applicationId,
+      status: isVerified ? 'verified' : 'unverified',
+      verifiedCredentials: isVerified ? verifiableCredentials : [],
+      message: isVerified ? 'Verification successful' : 'Verification failed',
     };
   }
 }
