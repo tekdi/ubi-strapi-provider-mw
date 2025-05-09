@@ -7,11 +7,13 @@ import {
 } from '@nestjs/common';
 import { LoginDto } from './dto/login-request.dto';
 import { AuthService } from './auth.service';
+import { Public } from './public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(public authService: AuthService) {}
 
+  @Public()
   @Post('/login')
   @UsePipes(ValidationPipe)
   login(@Body() req: LoginDto) {
