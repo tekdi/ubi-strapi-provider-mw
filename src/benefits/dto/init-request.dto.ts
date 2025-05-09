@@ -71,7 +71,7 @@ class InitContextDto {
 }
 
 class InitItemDto {
-  @ApiProperty({ description: 'Item ID', example: 'PB-BTR-2024-12-02-000726' })
+  @ApiProperty({ description: 'Item ID', example: 'giyuvihjvhv' })
   @IsString()
   @IsNotEmpty()
   id: string;

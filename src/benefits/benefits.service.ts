@@ -8,7 +8,6 @@ import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { response } from 'express';
 import { InitRequestDto } from './dto/init-request.dto';
 
 @Injectable()
@@ -16,10 +15,10 @@ export class BenefitsService {
   private readonly strapiUrl: string;
   private readonly strapiToken: string;
   private readonly providerUrl: string;
-  private readonly bapId: string;
-  private readonly bapUri: string;
   private readonly bppId: string;
   private readonly bppUri: string;
+  private bapId: string;
+  private bapUri: string;
   private readonly urlExtension: string =
     '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
 
@@ -30,8 +29,6 @@ export class BenefitsService {
     this.strapiUrl = this.configService.get<string>('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
     this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
-    this.bapId = this.configService.get('BAP_ID') || '';
-    this.bapUri = this.configService.get('BAP_URI') || '';
     this.bppId = this.configService.get('BPP_ID') || '';
     this.bppUri = this.configService.get('BPP_URI') || '';
   }
@@ -41,8 +38,6 @@ export class BenefitsService {
       !this.strapiToken.trim().length ||
       !this.strapiUrl.trim().length ||
       !this.providerUrl.trim().length ||
-      !this.bapId.trim().length ||
-      !this.bapUri.trim().length ||
       !this.bppId.trim().length ||
       !this.bppUri.trim().length
     ) {
@@ -88,6 +83,7 @@ export class BenefitsService {
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
+      this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
         `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
@@ -101,7 +97,7 @@ export class BenefitsService {
       let mappedResponse;
 
       if (response?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
           response?.data?.data,
           'on_search',
         );
@@ -114,7 +110,10 @@ export class BenefitsService {
   }
 
   async selectBenefitsById(body: any): Promise<any> {
+    this.checkBapIdAndUri(body?.context?.bap_id, body?.context?.bap_uri);
+
     let id = body.message.order.items[0].id;
+
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
@@ -126,7 +125,7 @@ export class BenefitsService {
     );
     let mappedResponse;
     if (response?.data) {
-      mappedResponse = await this.transformScholarshipsToONDCFormat(
+      mappedResponse = await this.transformScholarshipsToOnestFormat(
         [response?.data?.data],
         'on_select',
       );
@@ -136,9 +135,8 @@ export class BenefitsService {
   }
 
   async init(selectDto: InitRequestDto): Promise<any> {
+    this.checkBapIdAndUri(selectDto?.context?.bap_id, selectDto?.context?.bap_uri);
     try {
-      let schemaJson;
-      const response = [];
       const benefitId = selectDto.message.order.items[0].id;
 
       // Fetch benefit data from the strapi
@@ -147,7 +145,7 @@ export class BenefitsService {
       let mappedResponse;
 
       if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
           [benefitData?.data?.data],
           'on_init',
         );
@@ -197,7 +195,17 @@ export class BenefitsService {
     }
   }
 
-  async transformScholarshipsToONDCFormat(apiResponseArray, action?) {
+  // Function to check if the BAP ID and URI are valid
+  checkBapIdAndUri(bapId: string, bapUri: string) {
+    if (!bapId || !bapUri) {
+      throw new BadRequestException('Invalid BAP ID or URI');
+    }
+
+    this.bapId = bapId;
+    this.bapUri = bapUri;
+  }
+
+  async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
     if (!Array.isArray(apiResponseArray)) {
       throw new Error('Expected an array of scholarships');
     }
