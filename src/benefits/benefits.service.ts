@@ -103,6 +103,7 @@ export class BenefitsService {
       if (response?.data) {
         mappedResponse = await this.transformScholarshipsToONDCFormat(
           response?.data?.data,
+          'on_search',
         );
       }
 
@@ -125,9 +126,10 @@ export class BenefitsService {
     );
     let mappedResponse;
     if (response?.data) {
-      mappedResponse = await this.transformScholarshipsToONDCFormat([
-        response?.data?.data,
-      ]);
+      mappedResponse = await this.transformScholarshipsToONDCFormat(
+        [response?.data?.data],
+        'on_select',
+      );
     }
 
     return mappedResponse;
@@ -145,9 +147,10 @@ export class BenefitsService {
       let mappedResponse;
 
       if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat([
-          benefitData?.data?.data,
-        ]);
+        mappedResponse = await this.transformScholarshipsToONDCFormat(
+          [benefitData?.data?.data],
+          'on_init',
+        );
       }
 
       const xinput = {
@@ -194,7 +197,7 @@ export class BenefitsService {
     }
   }
 
-  async transformScholarshipsToONDCFormat(apiResponseArray) {
+  async transformScholarshipsToONDCFormat(apiResponseArray, action?) {
     if (!Array.isArray(apiResponseArray)) {
       throw new Error('Expected an array of scholarships');
     }
@@ -268,7 +271,7 @@ export class BenefitsService {
     return {
       context: {
         domain: 'onest:financial-support',
-        action: 'on_search',
+        action: action,
         version: '1.1.0',
         bap_id: this.bapId,
         bap_uri: this.bapUri,
