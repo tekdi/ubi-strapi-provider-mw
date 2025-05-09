@@ -50,9 +50,6 @@ export class BenefitsService {
   }
 
   async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
-
-    console.log('Filters:', body); // Debugging line
-
     const page = body?.page || '1';
     const pageSize = body?.pageSize || '100';
     const sort = body?.sort || 'createdAt:desc';
