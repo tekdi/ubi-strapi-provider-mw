@@ -16,13 +16,13 @@ datasource db {
 
 model Applications {
   id                Int              @id @default(autoincrement())
-  benefitId         String           @unique
+  benefitId         String
   status            String
-  applicationData   Json             // form fields saved as they are dynamic 
-  customerId        String?          
-  bapId             String?          
-  calculatedAmount  String?          
-  finalAmount       String?         
+  applicationData   Json             // form fields saved as they are dynamic
+  customerId        String?
+  bapId             String?
+  calculatedAmount  String?
+  finalAmount       String?
   applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt         DateTime         @default(now()) // Automatically set on creation
   updatedAt         DateTime         @updatedAt      // Automatically updated on modification
@@ -30,9 +30,9 @@ model Applications {
 
 model ApplicationFiles {
   id                 Int          @id @default(autoincrement())
-  storage            String       
-  filePath           String?       
-  verificationStatus Json?         
+  storage            String
+  filePath           String?
+  verificationStatus Json?
   applicationId      Int
   application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
   createdAt          DateTime     @default(now()) // Automatically set on creation
