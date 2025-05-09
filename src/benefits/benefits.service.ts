@@ -17,10 +17,10 @@ export class BenefitsService {
   private readonly strapiUrl: string;
   private readonly strapiToken: string;
   private readonly providerUrl: string;
-  private readonly bapId: string;
-  private readonly bapUri: string;
   private readonly bppId: string;
   private readonly bppUri: string;
+  private bapId: string;
+  private bapUri: string;
   private readonly urlExtension: string =
     '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
 
@@ -31,19 +31,15 @@ export class BenefitsService {
     this.strapiUrl = this.configService.get('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
     this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
-    this.bapId = this.configService.get('BAP_ID') || '';
-    this.bapUri = this.configService.get('BAP_URI') || '';
     this.bppId = this.configService.get('BPP_ID') || '';
     this.bppUri = this.configService.get('BPP_URI') || '';
   }
 
   onModuleInit() {
     if (
-      !this.strapiUrl.trim().length ||
       !this.strapiToken.trim().length ||
+      !this.strapiUrl.trim().length ||
       !this.providerUrl.trim().length ||
-      !this.bapId.trim().length ||
-      !this.bapUri.trim().length ||
       !this.bppId.trim().length ||
       !this.bppUri.trim().length
     ) {
@@ -108,6 +104,7 @@ export class BenefitsService {
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       // Example: Call an external API
+      this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
         `${this.strapiUrl}/benefits${this.urlExtension}`,
         {
@@ -121,8 +118,9 @@ export class BenefitsService {
       let mappedResponse;
 
       if (response?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
           response?.data?.data,
+          'on_search',
         );
       }
 
@@ -132,7 +130,11 @@ export class BenefitsService {
     throw new BadRequestException('Invalid domain provided');
   }
 
-  async selectBenefitsById(id: string): Promise<any> {
+  async selectBenefitsById(body: any): Promise<any> {
+    this.checkBapIdAndUri(body?.context?.bap_id, body?.context?.bap_uri);
+
+    let id = body.message.order.items[0].id;
+
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
       {
@@ -144,18 +146,18 @@ export class BenefitsService {
     );
     let mappedResponse;
     if (response?.data) {
-      mappedResponse = await this.transformScholarshipsToONDCFormat([
-        response?.data?.data,
-      ]);
+      mappedResponse = await this.transformScholarshipsToOnestFormat(
+        [response?.data?.data],
+        'on_select',
+      );
     }
 
     return mappedResponse;
   }
 
   async init(selectDto: InitRequestDto): Promise<any> {
+    this.checkBapIdAndUri(selectDto?.context?.bap_id, selectDto?.context?.bap_uri);
     try {
-      let schemaJson;
-      const response = [];
       const benefitId = selectDto.message.order.items[0].id;
 
       // Fetch benefit data from the strapi
@@ -164,8 +166,10 @@ export class BenefitsService {
       let mappedResponse;
 
       if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToONDCFormat(
-          [benefitData?.data?.data]);
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          [benefitData?.data?.data],
+          'on_init',
+        );
       }
 
       const xinput = {
@@ -188,7 +192,8 @@ export class BenefitsService {
         required: true,
       };
 
-      const { id, descriptor, categories, locations, items, rateable }: any = mappedResponse?.message.catalog.providers[0];
+      const { id, descriptor, categories, locations, items, rateable }: any =
+        mappedResponse?.message.catalog.providers[0];
 
       items[0].xinput = xinput;
 
@@ -197,12 +202,12 @@ export class BenefitsService {
         // Ensure the object matches the InitOrderDto type
         providers: [{ id, descriptor, rateable, locations, categories }],
         items,
-      }
+      };
 
       selectDto.context = {
         ...selectDto.context,
         ...mappedResponse?.context,
-        action: 'on_init'
+        action: 'on_init',
       };
       return selectDto;
     } catch (error) {
@@ -211,7 +216,17 @@ export class BenefitsService {
     }
   }
 
-  async transformScholarshipsToONDCFormat(apiResponseArray) {
+  // Function to check if the BAP ID and URI are valid
+  checkBapIdAndUri(bapId: string, bapUri: string) {
+    if (!bapId || !bapUri) {
+      throw new BadRequestException('Invalid BAP ID or URI');
+    }
+
+    this.bapId = bapId;
+    this.bapUri = bapUri;
+  }
+
+  async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
     if (!Array.isArray(apiResponseArray)) {
       throw new Error('Expected an array of scholarships');
     }
@@ -285,7 +300,7 @@ export class BenefitsService {
     return {
       context: {
         domain: 'onest:financial-support',
-        action: 'on_search',
+        action: action,
         version: '1.1.0',
         bap_id: this.bapId,
         bap_uri: this.bapUri,
@@ -373,8 +388,8 @@ export class BenefitsService {
       },
       list: eligibility.map((e) => ({
         descriptor: {
-          code: e.type,
-          name: e.type.charAt(0).toUpperCase() + e.type.slice(1),
+          code: e.evidence,
+          name: e.type.charAt(0).toUpperCase() + e.type.slice(1) + ' - ' + e.evidence,
           short_desc: e.description,
         },
         value: JSON.stringify(e),
