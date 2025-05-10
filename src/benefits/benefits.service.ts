@@ -164,7 +164,7 @@ export class BenefitsService {
           headings: ['Personal Details'],
         },
         form: {
-          url: `${this.providerUrl}/apply/${benefitId}`, // React route for the benefit ID
+          url: `${this.providerUrl}/benefit/apply/${benefitId}`, // React route for the benefit ID
           mime_type: 'text/html',
           resubmit: false,
         },
