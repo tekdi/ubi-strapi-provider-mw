@@ -9,6 +9,8 @@ import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { InitRequestDto } from './dto/init-request.dto';
+import * as qs from 'qs';
+import { SearchBenefitsDto } from './dto/search-benefits.dto';
 
 @Injectable()
 export class BenefitsService {
@@ -26,7 +28,7 @@ export class BenefitsService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.strapiUrl = this.configService.get<string>('STRAPI_URL') || '';
+    this.strapiUrl = this.configService.get('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
     this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
     this.bppId = this.configService.get('BPP_ID') || '';
@@ -42,28 +44,44 @@ export class BenefitsService {
       !this.bppUri.trim().length
     ) {
       throw new InternalServerErrorException(
-        'Environment variables STRAPI_URL and STRAPI_TOKEN must be set',
+        'One or more required environment variables are missing or empty: STRAPI_URL, STRAPI_TOKEN, PROVIDER_UBA_UI_URL, BAP_ID, BAP_URI, BPP_ID, BPP_URI',
       );
     }
   }
 
-  async getBenefits(searchRequest: SearchRequestDto): Promise<any> {
-    if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
-      // Example: Call an external API
-      const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits${this.urlExtension}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.strapiToken}`,
-          },
-        },
-      );
+  async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
+    const page = body?.page || '1';
+    const pageSize = body?.pageSize || '100';
+    const sort = body?.sort || 'createdAt:desc';
+    const locale = body?.locale || 'en';
+    const filters = body?.filters || {};
 
-      return response;
-    }
+    const queryParams = {
+      page,
+      pageSize,
+      sort,
+      locale,
+      filters,
+    };
 
-    throw new BadRequestException('Invalid domain provided');
+    const queryString = qs.stringify(queryParams, {
+      encode: false,
+      arrayFormat: 'brackets',
+    });
+
+    const url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
+
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: req.headers['authorization'] || req.headers['Authorization'],
+    };
+
+    const response = await this.httpService.axiosRef.get(url, {
+      headers,
+    });
+
+    return response.data;
   }
 
   async getBenefitsById(id: string): Promise<any> {
