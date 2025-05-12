@@ -13,12 +13,12 @@ import { AuthGuard } from 'src/auth/auth.guard';
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
 @Controller('applications')
-@UseGuards(AuthGuard)
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 
   // Create a new application
   @Post()
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Create a new application' })
   @ApiBody({ description: 'Application data', type: CreateApplicationsDto })
   @ApiResponse({ status: 201, description: 'Application created successfully' })
@@ -29,6 +29,7 @@ export class ApplicationsController {
 
   // Get all applications
   @Get()
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get all applications' })
   @ApiResponse({ status: 200, description: 'List of applications retrieved successfully' })
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -38,6 +39,7 @@ export class ApplicationsController {
 
   // Get a single application by ID
   @Get(':id')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get a single application by ID' })
   @ApiParam({ name: 'id', description: 'Application ID', type: Number })
   @ApiResponse({ status: 200, description: 'Application retrieved successfully' })
@@ -48,6 +50,7 @@ export class ApplicationsController {
 
   // Update an application by ID
   @Patch(':id')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Update an application by ID' })
   @ApiParam({ name: 'id', description: 'Application ID', type: Number })
   @ApiBody({ description: 'Updated application data', type: UpdateApplicationsDto })
@@ -59,6 +62,7 @@ export class ApplicationsController {
   }
 
   @Patch(':id/status')  
+  @UseGuards(AuthGuard)
   @ApiOperation({
     summary: 'Update Application Status',
     description: 'Update the status of an application (approved or rejected)',

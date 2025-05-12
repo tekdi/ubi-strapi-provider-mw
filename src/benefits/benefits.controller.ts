@@ -21,7 +21,7 @@ import { SearchBenefitsDto } from './dto/search-benefits.dto';
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
 @Controller('benefits')
-@UseGuards(AuthGuard)
+
 export class BenefitsController {
   constructor(private readonly benefitsService: BenefitsService) {}
 
@@ -36,7 +36,6 @@ export class BenefitsController {
   }
 
   @Post('search')
-  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get Benefits for given provider user',
