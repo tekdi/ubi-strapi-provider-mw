@@ -34,7 +34,7 @@ export class VerificationService {
         try {
           const fileContent = await fs.readFile(file.filePath, 'utf-8');
           const parsedData = JSON.parse(fileContent);
-          console.log('Parsed File Data:', parsedData);
+          // console.log('Parsed File Data:', parsedData);
 
           // Make verify API call
           const apiUrl = process.env.UBI_VERIFICATION_API;
@@ -52,12 +52,31 @@ export class VerificationService {
                 isValid: true,
                 message: response.data.message || 'Credential verified successfully.',
               });
+
+              // Update status in ApplicationFiles table for success
+              await this.prisma.applicationFiles.update({
+                where: { id: file.id },
+                data: {
+                  verificationStatus: { status: 'Verified' },
+                },
+              });
             } else {
-              const errorMessages = response.data.errors?.map(err => err.error).join(', ') || 'Unknown error';
+              const errorMessages = response.data.errors?.map(err => err.error) || ['Unknown error'];
               verificationResults.push({
                 filePath: file.filePath,
                 isValid: false,
-                message: `${response.data.message || 'Verification failed.'} Errors: ${errorMessages}`,
+                message: `${response.data.message || 'Verification failed.'} Errors: ${errorMessages.join(', ')}`,
+              });
+
+              // Update status in ApplicationFiles table for failure
+              await this.prisma.applicationFiles.update({
+                where: { id: file.id },
+                data: {
+                  verificationStatus:{
+                    status: 'Unverified',
+                    verificationErrors: errorMessages,
+                  },
+                },
               });
             }
           } else {
@@ -67,6 +86,17 @@ export class VerificationService {
               isValid: false,
               message: 'Error: Verification API response is undefined or invalid',
             });
+
+            // Update status in ApplicationFiles table for invalid response
+            await this.prisma.applicationFiles.update({
+              where: { id: file.id },
+              data: {
+                verificationStatus: {
+                  status: 'Unverified',
+                  verificationErrors: ['Verification API response is undefined or invalid'],
+                },
+              },
+            });
           }
         } catch (error) {
           console.error(`Error processing file at ${file.filePath}:`, error);
@@ -74,6 +104,17 @@ export class VerificationService {
             filePath: file.filePath,
             isValid: false,
             message: `Error: ${error.message}`,
+          });
+
+          // Update status in ApplicationFiles table for processing error
+          await this.prisma.applicationFiles.update({
+            where: { id: file.id },
+            data: {
+              verificationStatus: {
+                status: 'Unverified',
+                verificationErrors: [error.message],
+              },
+            },
           });
         }
       }
