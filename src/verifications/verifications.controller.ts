@@ -6,11 +6,11 @@ import { AllExceptionsFilter } from '../common/filters/exception.filters';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Verifications') // Grouping the endpoints under "Verifications" in Swagger
-@Controller('verifications')
+@Controller('verify')
 export class VerificationsController {
   constructor(private readonly verificationService: VerificationService) {}
 
-  @Post('/verifyApplicationVcs')
+  @Post('/application-vcs')
   @ApiOperation({ summary: 'Verify Verifiable Credentials (VCs) for a specific application' })
   @ApiResponse({
     status: 200,
