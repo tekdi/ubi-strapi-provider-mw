@@ -18,7 +18,10 @@ import { PrismaService } from './prisma.service';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [
+    AppService,
+    PrismaService,
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
