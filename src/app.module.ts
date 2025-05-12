@@ -20,7 +20,10 @@ import { VerificationsModule } from './verifications/verifications.module';
     VerificationsModule
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [
+    AppService,
+    PrismaService,
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
@@ -8,6 +8,7 @@ import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
@@ -27,6 +28,7 @@ export class ApplicationsController {
 
   // Get all applications
   @Get()
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get all applications' })
   @ApiResponse({ status: 200, description: 'List of applications retrieved successfully' })
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -36,6 +38,7 @@ export class ApplicationsController {
 
   // Get a single application by ID
   @Get(':id')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get a single application by ID' })
   @ApiParam({ name: 'id', description: 'Application ID', type: Number })
   @ApiResponse({ status: 200, description: 'Application retrieved successfully' })
@@ -46,6 +49,7 @@ export class ApplicationsController {
 
   // Update an application by ID
   @Patch(':id')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Update an application by ID' })
   @ApiParam({ name: 'id', description: 'Application ID', type: Number })
   @ApiBody({ description: 'Updated application data', type: UpdateApplicationsDto })
@@ -56,7 +60,8 @@ export class ApplicationsController {
     return this.applicationsService.update(Number(id), data as Prisma.ApplicationsUpdateInput);
   }
 
-  @Patch(':id/status')
+  @Patch(':id/status')  
+  @UseGuards(AuthGuard)
   @ApiOperation({
     summary: 'Update Application Status',
     description: 'Update the status of an application (approved or rejected)',
