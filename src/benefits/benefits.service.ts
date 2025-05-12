@@ -9,6 +9,8 @@ import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { InitRequestDto } from './dto/init-request.dto';
+import { ConfirmRequestDto } from './dto/confirm-request.dto';
+import { ApplicationsService } from 'src/applications/applications.service';
 import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { console } from 'inspector';
@@ -29,6 +31,7 @@ export class BenefitsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly applicationService: ApplicationsService,
     private prisma: PrismaService,
   ) {
     this.strapiUrl = this.configService.get('STRAPI_URL') || '';
@@ -133,7 +136,7 @@ export class BenefitsService {
 
   async getBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
+      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +153,7 @@ export class BenefitsService {
       // Example: Call an external API
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits${this.urlExtension}`,
+        `${this.strapiUrl}/api/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -180,7 +183,7 @@ export class BenefitsService {
     let id = body.message.order.items[0].id;
 
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
+      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -251,13 +254,65 @@ export class BenefitsService {
       selectDto.context = {
         ...selectDto.context,
         ...mappedResponse?.context,
-        action: 'on_init',
       };
       return selectDto;
     } catch (error) {
       console.error('Error in handleInit:', error);
       throw new InternalServerErrorException('Failed to initialize benefit');
     }
+  }
+
+  async confirm(confirmDto: ConfirmRequestDto): Promise<any> {
+    this.checkBapIdAndUri(confirmDto?.context?.bap_id, confirmDto?.context?.bap_uri);
+
+    try {
+      const confirmData = {};
+      const benefitId = confirmDto.message.order.items[0].id;
+      const applicationId = confirmDto.message.order.provider.id; // from frontend will be received after save application
+
+      // Fetch benefit data
+      const benefitData = await this.getBenefitsById(benefitId);
+
+      let mappedResponse;
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          [benefitData?.data?.data],
+          'on_confirm',
+        );
+      }
+
+      // Generate order ID
+      const orderId: string = `TLEXP_${this.generateRandomString()}_${Date.now()}`;
+
+      // Update customer details
+      const orderDetails = await this.applicationService.update(Number(applicationId), { orderId });
+  
+      const { id, descriptor, categories, locations, items, rateable }: any =
+        mappedResponse?.message.catalog.providers[0];
+
+      confirmData["message"] = {
+        "order" : {
+          ...confirmDto.message.order,
+          provider: [{ id, descriptor, rateable, locations, categories }],
+          items,
+          id: orderDetails.orderId,
+        }
+      };
+
+      confirmData["context"] = {
+        ...confirmDto.context,
+        ...mappedResponse?.context,
+      };
+
+      return confirmData;
+    } catch (error) {
+      console.error('Error in confirm:', error);
+      throw new InternalServerErrorException('Failed to confirm benefit');
+    }
+  }
+
+  private generateRandomString(): string {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
   // Function to check if the BAP ID and URI are valid
@@ -272,7 +327,7 @@ export class BenefitsService {
 
   async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
     if (!Array.isArray(apiResponseArray)) {
-      throw new Error('Expected an array of scholarships');
+      throw new Error('Expected an array of benefits');
     }
 
     const items = await Promise.all(
