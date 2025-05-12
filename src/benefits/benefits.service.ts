@@ -136,7 +136,7 @@ export class BenefitsService {
 
   async getBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
+      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ export class BenefitsService {
       // Example: Call an external API
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/benefits${this.urlExtension}`,
+        `${this.strapiUrl}/api/benefits${this.urlExtension}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ export class BenefitsService {
     let id = body.message.order.items[0].id;
 
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/benefits/${id}${this.urlExtension}`,
+      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
