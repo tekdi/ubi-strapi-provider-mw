@@ -21,6 +21,7 @@ import { SearchBenefitsDto } from './dto/search-benefits.dto';
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
 @Controller('benefits')
+
 export class BenefitsController {
   constructor(private readonly benefitsService: BenefitsService) {}
 
@@ -29,6 +30,7 @@ export class BenefitsController {
     description: 'Fetch benefits by their unique identifier.',
   })
   @Get('getById/:docid')
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string): any {
     return this.benefitsService.getBenefitsById(id);
