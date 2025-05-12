@@ -13,6 +13,8 @@ import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { ApplicationsService } from 'src/applications/applications.service';
 import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
+import { console } from 'inspector';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class BenefitsService {
@@ -29,7 +31,8 @@ export class BenefitsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly applicationService: ApplicationsService
+    private readonly applicationService: ApplicationsService,
+    private prisma: PrismaService,
   ) {
     this.strapiUrl = this.configService.get('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
@@ -72,6 +75,7 @@ export class BenefitsService {
       arrayFormat: 'brackets',
     });
 
+    // Call to the Strapi API to get the benefits
     const url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
 
     const headers = {
@@ -83,6 +87,49 @@ export class BenefitsService {
     const response = await this.httpService.axiosRef.get(url, {
       headers,
     });
+
+    // Check if the response contains results
+    if (response?.data?.results.length > 0) {
+      const enrichedData = await Promise.all(
+        // Map through the results and fetch application details
+        response.data.results.map(async (benefit) => {
+          let benefitApplications = await this.prisma.applications.findMany({
+            where: { benefitId: String(benefit.id) },
+          });
+
+          let pendingBenefitApplications = 0;
+          let approvedBenefitApplications = 0;
+          let rejectedBenefitApplications = 0;
+
+          for (const application of benefitApplications) {
+            if (application.status === "pending") {
+              pendingBenefitApplications++;
+            } else if (application.status === "approved") {
+              approvedBenefitApplications++;
+            } else if (application.status === "rejected") {
+              rejectedBenefitApplications++;
+            }
+          }
+
+          if (!benefitApplications) {
+            benefitApplications = [];
+          }
+
+          // Enrich the benefit data with application details like application count, successful and failed applications count
+          return {
+            ...benefit,
+            application_details: {
+              applications_count: benefitApplications.length,
+              pending_applications_count: pendingBenefitApplications,
+              approved_applications_count: approvedBenefitApplications,
+              rejected_applications_count: rejectedBenefitApplications,
+            },
+          };
+        }),
+      );
+
+      response.data.results = enrichedData;
+    }
 
     return response.data;
   }

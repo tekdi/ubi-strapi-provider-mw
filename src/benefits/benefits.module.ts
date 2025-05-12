@@ -9,7 +9,7 @@ import { PrismaService } from 'src/prisma.service';
 @Module({
   controllers: [BenefitsController],
   imports: [HttpModule],
-  providers: [BenefitsService, ConfigService, ApplicationsService, PrismaService],
-  exports: [BenefitsService,],
+  providers: [BenefitsService, ConfigService, ApplicationsService, PrismaService, PrismaService],
+  exports: [BenefitsService],
 })
-export class BenefitsModule { }
+export class BenefitsModule {}
