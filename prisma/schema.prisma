@@ -23,6 +23,7 @@ model Applications {
   bapId             String?
   calculatedAmount  String?
   finalAmount       String?
+  orderId           String?          // New column added
   applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt         DateTime         @default(now()) // Automatically set on creation
   updatedAt         DateTime         @updatedAt      // Automatically updated on modification

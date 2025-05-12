@@ -9,6 +9,8 @@ import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { InitRequestDto } from './dto/init-request.dto';
+import { ConfirmRequestDto } from './dto/confirm-request.dto';
+import { ApplicationsService } from 'src/applications/applications.service';
 
 @Injectable()
 export class BenefitsService {
@@ -25,6 +27,7 @@ export class BenefitsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly applicationService: ApplicationsService
   ) {
     this.strapiUrl = this.configService.get<string>('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
@@ -186,13 +189,65 @@ export class BenefitsService {
       selectDto.context = {
         ...selectDto.context,
         ...mappedResponse?.context,
-        action: 'on_init',
       };
       return selectDto;
     } catch (error) {
       console.error('Error in handleInit:', error);
       throw new InternalServerErrorException('Failed to initialize benefit');
     }
+  }
+
+  async confirm(confirmDto: ConfirmRequestDto): Promise<any> {
+    this.checkBapIdAndUri(confirmDto?.context?.bap_id, confirmDto?.context?.bap_uri);
+
+    try {
+      const confirmData = {};
+      const benefitId = confirmDto.message.order.items[0].id;
+      const applicationId = confirmDto.message.order.provider.id; // from frontend will be received after save application
+
+      // Fetch benefit data
+      const benefitData = await this.getBenefitsById(benefitId);
+
+      let mappedResponse;
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          [benefitData?.data?.data],
+          'on_confirm',
+        );
+      }
+
+      // Generate order ID
+      const orderId: string = `TLEXP_${this.generateRandomString()}_${Date.now()}`;
+
+      // Update customer details
+      const orderDetails = await this.applicationService.update(Number(applicationId), { orderId });
+  
+      const { id, descriptor, categories, locations, items, rateable }: any =
+        mappedResponse?.message.catalog.providers[0];
+
+      confirmData["message"] = {
+        "order" : {
+          ...confirmDto.message.order,
+          provider: [{ id, descriptor, rateable, locations, categories }],
+          items,
+          id: orderDetails.orderId,
+        }
+      };
+
+      confirmData["context"] = {
+        ...confirmDto.context,
+        ...mappedResponse?.context,
+      };
+
+      return confirmData;
+    } catch (error) {
+      console.error('Error in confirm:', error);
+      throw new InternalServerErrorException('Failed to confirm benefit');
+    }
+  }
+
+  private generateRandomString(): string {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
   // Function to check if the BAP ID and URI are valid
@@ -207,7 +262,7 @@ export class BenefitsService {
 
   async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
     if (!Array.isArray(apiResponseArray)) {
-      throw new Error('Expected an array of scholarships');
+      throw new Error('Expected an array of benefits');
     }
 
     const items = await Promise.all(

@@ -142,6 +142,7 @@ export class ApplicationsService {
       statusCode: 200,
       status: 'success',
       message: `Application ${updateStatusDto.status} successfully`,
+      data: updatedApplication,
     };
   }
 }
