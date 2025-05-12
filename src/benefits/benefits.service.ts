@@ -94,14 +94,17 @@ export class BenefitsService {
             where: { benefitId: String(benefit.id) },
           });
 
-          let successfulBenefitApplications = 0;
-          let failedBenefitApplications = 0;
+          let pendingBenefitApplications = 0;
+          let approvedBenefitApplications = 0;
+          let rejectedBenefitApplications = 0;
 
           for (const application of benefitApplications) {
-            if (application.status === "true") {
-              successfulBenefitApplications++;
-            } else if (application.status === "false") {
-              failedBenefitApplications++;
+            if (application.status === "pending") {
+              pendingBenefitApplications++;
+            } else if (application.status === "approved") {
+              approvedBenefitApplications++;
+            } else if (application.status === "rejected") {
+              rejectedBenefitApplications++;
             }
           }
 
@@ -114,8 +117,9 @@ export class BenefitsService {
             ...benefit,
             application_details: {
               applications_count: benefitApplications.length,
-              successful_applications_count: successfulBenefitApplications,
-              failed_applications_count: failedBenefitApplications,
+              pending_applications_count: pendingBenefitApplications,
+              approved_applications_count: approvedBenefitApplications,
+              rejected_applications_count: rejectedBenefitApplications,
             },
           };
         }),
