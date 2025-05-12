@@ -1,5 +1,4 @@
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { AuthMiddleware } from './common/middlewares/auth.middleware';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,7 +8,6 @@ import { ApplicationFilesModule } from './applicationFiles/applicationFiles.modu
 import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma.service';
-import { AuthGuard } from './auth/auth.guard';
 
 @Module({
   imports: [
@@ -23,10 +21,6 @@ import { AuthGuard } from './auth/auth.guard';
   providers: [
     AppService,
     PrismaService,
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard,
-    },
   ],
 })
 export class AppModule {

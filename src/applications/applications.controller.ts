@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
@@ -8,10 +8,12 @@ import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
 @Controller('applications')
+@UseGuards(AuthGuard)
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 

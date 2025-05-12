@@ -7,16 +7,19 @@ import {
   Param,
   Post,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BenefitsService } from './benefits.service';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { InitRequestDto } from './dto/init-request.dto';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
 @Controller('benefits')
+@UseGuards(AuthGuard)
 export class BenefitsController {
   constructor(private readonly benefitsService: BenefitsService) {}
 
