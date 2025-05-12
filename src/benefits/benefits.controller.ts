@@ -30,12 +30,14 @@ export class BenefitsController {
     description: 'Fetch benefits by their unique identifier.',
   })
   @Get('getById/:docid')
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string): any {
     return this.benefitsService.getBenefitsById(id);
   }
 
   @Post('search')
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get Benefits for given provider user',

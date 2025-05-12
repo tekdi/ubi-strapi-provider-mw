@@ -18,7 +18,6 @@ export class ApplicationsController {
 
   // Create a new application
   @Post()
-  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Create a new application' })
   @ApiBody({ description: 'Application data', type: CreateApplicationsDto })
   @ApiResponse({ status: 201, description: 'Application created successfully' })
