@@ -3,12 +3,13 @@ import { HttpModule } from '@nestjs/axios';
 import { BenefitsService } from './benefits.service';
 import { ConfigService } from '@nestjs/config';
 import { BenefitsController } from './benefits.controller';
-import { PrismaService } from '../prisma.service';
+import { ApplicationsService } from 'src/applications/applications.service';
+import { PrismaService } from 'src/prisma.service';
 
 @Module({
   controllers: [BenefitsController],
   imports: [HttpModule],
-  providers: [BenefitsService, ConfigService, PrismaService],
+  providers: [BenefitsService, ConfigService, ApplicationsService, PrismaService, PrismaService],
   exports: [BenefitsService],
 })
 export class BenefitsModule {}
