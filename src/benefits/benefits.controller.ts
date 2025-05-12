@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { BenefitsService } from './benefits.service';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { InitRequestDto } from './dto/init-request.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { SearchBenefitsDto } from './dto/search-benefits.dto';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
@@ -34,17 +36,15 @@ export class BenefitsController {
   }
 
   @Post('search')
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Search Benefits',
-    description:
-      'Search for benefits based on the provided context and message.',
+    summary: 'Get Benefits for given provider user',
+    description: 'Search for benefits based on the logged in provider user.',
   })
-  searchBenefits(@Body() searchRequestDto: SearchRequestDto): any {
-    return this.benefitsService.getBenefits(searchRequestDto);
+  searchBenefits(@Body() body: SearchBenefitsDto, @Req() req: Request): any {
+    return this.benefitsService.getBenefits(req, body);
   }
-
-  // Network api's routes
 
   @Post('dsep/search')
   @HttpCode(HttpStatus.OK)
@@ -69,9 +69,8 @@ export class BenefitsController {
 
   @Post('dsep/init')
   @ApiOperation({
-    summary: 'Initialize Course',
-    description:
-      'Handles the initialization of a course based on the provided data.',
+    summary: 'Initialize',
+    description: 'Handles the initialization based on the provided data.',
   })
   async init(@Body() initRequestDto: InitRequestDto) {
     return this.benefitsService.init(initRequestDto);
