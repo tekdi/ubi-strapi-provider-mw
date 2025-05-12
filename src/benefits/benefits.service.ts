@@ -11,6 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { InitRequestDto } from './dto/init-request.dto';
 import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
+import { console } from 'inspector';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class BenefitsService {
@@ -27,6 +29,7 @@ export class BenefitsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private prisma: PrismaService,
   ) {
     this.strapiUrl = this.configService.get('STRAPI_URL') || '';
     this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
@@ -69,6 +72,7 @@ export class BenefitsService {
       arrayFormat: 'brackets',
     });
 
+    // Call to the Strapi API to get the benefits
     const url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
 
     const headers = {
@@ -80,6 +84,45 @@ export class BenefitsService {
     const response = await this.httpService.axiosRef.get(url, {
       headers,
     });
+
+    // Check if the response contains results
+    if (response?.data?.results.length > 0) {
+      const enrichedData = await Promise.all(
+        // Map through the results and fetch application details
+        response.data.results.map(async (benefit) => {
+          let benefitApplications = await this.prisma.applications.findMany({
+            where: { benefitId: String(benefit.id) },
+          });
+
+          let successfulBenefitApplications = 0;
+          let failedBenefitApplications = 0;
+
+          for (const application of benefitApplications) {
+            if (application.status === "true") {
+              successfulBenefitApplications++;
+            } else if (application.status === "false") {
+              failedBenefitApplications++;
+            }
+          }
+
+          if (!benefitApplications) {
+            benefitApplications = [];
+          }
+
+          // Enrich the benefit data with application details like application count, successful and failed applications count
+          return {
+            ...benefit,
+            application_details: {
+              applications_count: benefitApplications.length,
+              successful_applications_count: successfulBenefitApplications,
+              failed_applications_count: failedBenefitApplications,
+            },
+          };
+        }),
+      );
+
+      response.data.results = enrichedData;
+    }
 
     return response.data;
   }
