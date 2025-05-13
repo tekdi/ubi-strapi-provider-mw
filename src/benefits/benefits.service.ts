@@ -13,7 +13,6 @@ import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { ApplicationsService } from 'src/applications/applications.service';
 import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
-import { console } from 'inspector';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -264,14 +263,13 @@ export class BenefitsService {
 
   async confirm(confirmDto: ConfirmRequestDto): Promise<any> {
     this.checkBapIdAndUri(confirmDto?.context?.bap_id, confirmDto?.context?.bap_uri);
-
     try {
       const confirmData = {};
-      const benefitId = confirmDto.message.order.items[0].id;
-      const applicationId = confirmDto.message.order.provider.id; // from frontend will be received after save application
+      const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
-      // Fetch benefit data
-      const benefitData = await this.getBenefitsById(benefitId);
+      // Fetch application data from db
+      const benefit = await this.applicationService.findOne(Number(applicationId));
+      const benefitData = await this.getBenefitsById(benefit.benefitId); // from strapi
 
       let mappedResponse;
       if (benefitData?.data) {
@@ -282,16 +280,16 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = `TLEXP_${this.generateRandomString()}_${Date.now()}`;
+      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;
 
       // Update customer details
       const orderDetails = await this.applicationService.update(Number(applicationId), { orderId });
-  
+
       const { id, descriptor, categories, locations, items, rateable }: any =
         mappedResponse?.message.catalog.providers[0];
 
       confirmData["message"] = {
-        "order" : {
+        "order": {
           ...confirmDto.message.order,
           provider: [{ id, descriptor, rateable, locations, categories }],
           items,
