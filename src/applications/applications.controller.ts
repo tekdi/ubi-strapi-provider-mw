@@ -9,85 +9,61 @@ import { UpdateApplicationStatusDto } from './dto/update-application-status.dto'
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { ApplicationsApiDocs } from '../docs';
 
 @UseFilters(new AllExceptionsFilter())
-@ApiTags('Applications') // Grouping the endpoints under "Applications" in Swagger
+@ApiTags('Applications')
 @Controller('applications')
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 
-  // Create a new application
   @Post()
-  @ApiOperation({ summary: 'Create a new application' })
-  @ApiBody({ description: 'Application data', type: CreateApplicationsDto })
-  @ApiResponse({ status: 201, description: 'Application created successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiOperation(ApplicationsApiDocs.create.operation)
+  @ApiBody(ApplicationsApiDocs.create.body)
+  @ApiResponse(ApplicationsApiDocs.create.responses.success)
+  @ApiResponse(ApplicationsApiDocs.create.responses.badRequest)
   async create(@Body() data: CreateApplicationsDto) {
     return this.applicationsService.create(data as Prisma.ApplicationsCreateInput);
   }
 
-  // Get all applications
   @Get()
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get all applications' })
-  @ApiResponse({ status: 200, description: 'List of applications retrieved successfully' })
+  @ApiOperation(ApplicationsApiDocs.findAll.operation)
+  @ApiResponse(ApplicationsApiDocs.findAll.responses.success)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async findAll(@Query() listDto: ListApplicationsDto) {
     return this.applicationsService.findAll(listDto);
   }
 
-  // Get a single application by ID
   @Get(':id')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get a single application by ID' })
-  @ApiParam({ name: 'id', description: 'Application ID', type: Number })
-  @ApiResponse({ status: 200, description: 'Application retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Application not found' })
+  @ApiOperation(ApplicationsApiDocs.findOne.operation)
+  @ApiParam(ApplicationsApiDocs.findOne.param)
+  @ApiResponse(ApplicationsApiDocs.findOne.responses.success)
+  @ApiResponse(ApplicationsApiDocs.findOne.responses.notFound)
   async findOne(@Param('id') id: string) {
     return this.applicationsService.findOne(Number(id));
   }
 
-  // Update an application by ID
   @Patch(':id')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Update an application by ID' })
-  @ApiParam({ name: 'id', description: 'Application ID', type: Number })
-  @ApiBody({ description: 'Updated application data', type: UpdateApplicationsDto })
-  @ApiResponse({ status: 200, description: 'Application updated successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
-  @ApiResponse({ status: 404, description: 'Application not found' })
+  @ApiOperation(ApplicationsApiDocs.update.operation)
+  @ApiParam(ApplicationsApiDocs.update.param)
+  @ApiBody(ApplicationsApiDocs.update.body)
+  @ApiResponse(ApplicationsApiDocs.update.responses.success)
+  @ApiResponse(ApplicationsApiDocs.update.responses.badRequest)
+  @ApiResponse(ApplicationsApiDocs.update.responses.notFound)
   async update(@Param('id') id: string, @Body() data: UpdateApplicationsDto) {
     return this.applicationsService.update(Number(id), data as Prisma.ApplicationsUpdateInput);
   }
 
-  @Patch(':id/status')  
+  @Patch(':id/status')
   @UseGuards(AuthGuard)
-  @ApiOperation({
-    summary: 'Update Application Status',
-    description: 'Update the status of an application (approved or rejected)',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Status updated successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        statusCode: {
-          type: 'number',
-          example: 200
-        },
-        status: {
-          type: 'string',
-          example: 'success'
-        },
-        message: {
-          type: 'string',
-          example: 'Application approved successfully'
-        }
-      }
-    }
-  })
-  @ApiResponse({ status: 400, description: 'Bad Request - Status is required' })
+  @ApiOperation(ApplicationsApiDocs.updateStatus.operation)
+  @ApiParam(ApplicationsApiDocs.updateStatus.param)
+  @ApiBody(ApplicationsApiDocs.updateStatus.body)
+  @ApiResponse(ApplicationsApiDocs.updateStatus.responses.success)
+  @ApiResponse(ApplicationsApiDocs.updateStatus.responses.badRequest)
   async updateStatus(
     @Param('id') id: string,
     @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,

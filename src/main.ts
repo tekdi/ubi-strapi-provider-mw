@@ -15,14 +15,25 @@ async function bootstrap() {
     }),
   );
 
-
   const config = new DocumentBuilder()
     .setTitle('API Documentation')
     .setDescription('The API description')
     .setVersion('1.0')
+    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Benefits', 'Benefits management endpoints')
+    .addTag('Applications', 'Application management endpoints')
+    .addTag('ApplicationFiles', 'File management endpoints')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('documentation', app, document);
+  SwaggerModule.setup('documentation', app, document, {
+    swaggerOptions: {
+      tagsSorter: (a, b) => {
+        const order = ['Auth', 'Benefits', 'Applications', 'ApplicationFiles'];
+        return order.indexOf(a) - order.indexOf(b);
+      },
+      operationsSorter: 'alpha'
+    },
+  });
 
   console.log('process.env.PORT-->>', process.env.PORT);
   await app.listen(process.env.PORT ?? 3000);
