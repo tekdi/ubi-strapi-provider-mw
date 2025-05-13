@@ -427,7 +427,6 @@ export class BenefitsService {
     const { id, descriptor, categories, locations, items, rateable }: any =
       mappedResponse?.message.catalog.providers[0];
 
-
     // Construct the final response
     statusData["message"] = {
       "order": {
