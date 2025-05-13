@@ -86,4 +86,13 @@ export class BenefitsController {
   async confirm(@Body() confirmRequestDto: ConfirmRequestDto) {
     return this.benefitsService.confirm(confirmRequestDto);
   }
+
+  @Post('dsep/status')
+  @ApiOperation({
+    summary: 'Status',
+    description: 'Handles the status based on the provided data.',
+  })
+  async status(@Body() statusRequestDto: any) {
+    return this.benefitsService.status(statusRequestDto);
+  }
 }

@@ -3,18 +3,20 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { PrismaService } from '../prisma.service';
+import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
 import { ConfirmRequestDto } from './dto/confirm-request.dto';
-import { ApplicationsService } from 'src/applications/applications.service';
-import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
-import { PrismaService } from '../prisma.service';
 import { ConfirmResponseDto } from './dto/confirm-response.dto';
+import { StatusRequestDto } from './dto/status-request.dto';
+import { StatusResponseDto } from './dto/status-response.dto';
 
 @Injectable()
 export class BenefitsService {
@@ -308,6 +310,140 @@ export class BenefitsService {
       console.error('Error in confirm:', error);
       throw new InternalServerErrorException('Failed to confirm benefit');
     }
+  }
+
+  async status(statusDto: StatusRequestDto): Promise<any> {
+    this.checkBapIdAndUri(statusDto?.context?.bap_id, statusDto?.context?.bap_uri);
+
+    const statusData = new StatusResponseDto();
+
+    // Extract order ID from the request body
+    const orderId = statusDto?.message?.order_id;
+
+    // Fetch application details using the order ID
+    const applicationData = await this.applicationService.find({
+      orderId,
+    });
+
+    if (!applicationData || applicationData.length === 0) {
+      throw new BadRequestException('No application found for the given order ID');
+    }
+
+    // Extract application from the application data
+    const application = applicationData[0];
+
+    // Fetch benefit details using the benefit ID
+    const benefitData = await this.getBenefitsById(application.benefitId); // from strapi
+
+    // Extract status from application data and add it to benefit data
+  
+    // Prepare the status object
+    const metadata = {
+      billing: {
+        name: 'N/A',
+        phone: 'N/A',
+        email: 'N/A',
+        address: 'N/A',
+        organization: {
+          "descriptor": {
+            "name": "Onest",
+            "code": "onest.com"
+          },
+          "contact": {
+            "phone": "+91-8888888888",
+            "email": "scholarships@nammayatri.in"
+          }
+        },
+      },
+      payments: [
+        {
+          params: {
+            bank_code: 'ICICI',
+            bank_account_number: '123456789012',
+            bank_account_name: 'John Doe',
+          },
+          type: 'PRE-ORDER',
+          status: 'PAID',
+          collected_by: 'bpp',
+        },
+      ],
+      fulfillments: [{
+        id: 'FULFILL_UNIFIED',
+        type: 'APPLICATION',
+        tracking: false,
+        state: {
+          descriptor: {
+            code: 'active',
+            name: 'Active',
+          },
+          updated_at: new Date().toISOString(),
+          state: 'ACTIVE',
+        },
+        agent: {
+          "person": {
+            "name": "Ekstep Foundation SPoc"
+          },
+          "contact": {
+            "email": "ekstepsupport@ekstep.com"
+          },
+        },
+        customer: {
+          "id": "aadhaar:798677675565",
+          "person": {
+            "name": "Jane Doe",
+            "age": "13",
+            "gender": "female"
+          },
+          "contact": {
+            "phone": "+91-9663088848",
+            "email": "jane.doe@example.com"
+          }
+        }
+      }],
+      quote: {
+        price: {
+          currency: 'INR',
+          value: (Math.floor(Math.random() * 20) * 10).toString(),
+        },
+        breakup: [
+          {
+            title: 'Tuition Fee',
+            price: {
+              currency: 'INR',
+              value: (Math.floor(Math.random() * 20) * 10).toString(),
+            },
+          }
+        ]
+      },
+    };
+    let mappedResponse;
+    if (benefitData?.data) {
+      mappedResponse = await this.transformScholarshipsToOnestFormat(
+        [benefitData?.data?.data],
+        'on_status',
+      );
+    }
+
+    const { id, descriptor, categories, locations, items, rateable }: any =
+      mappedResponse?.message.catalog.providers[0];
+
+
+    // Construct the final response
+    statusData["message"] = {
+      "order": {
+        provider: { id, descriptor, rateable, },
+        items,
+        id: orderId || "",
+        ...metadata
+      }
+    };
+
+    statusData["context"] = {
+      ...statusDto.context,
+      ...mappedResponse?.context,
+    };
+
+    return statusData;
   }
 
   private generateRandomString(): string {
