@@ -14,6 +14,7 @@ import { ApplicationsService } from 'src/applications/applications.service';
 import * as qs from 'qs';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { PrismaService } from '../prisma.service';
+import { ConfirmResponseDto } from './dto/confirm-response.dto';
 
 @Injectable()
 export class BenefitsService {
@@ -264,7 +265,7 @@ export class BenefitsService {
   async confirm(confirmDto: ConfirmRequestDto): Promise<any> {
     this.checkBapIdAndUri(confirmDto?.context?.bap_id, confirmDto?.context?.bap_uri);
     try {
-      const confirmData = {};
+      const confirmData = new ConfirmResponseDto();
       const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
       // Fetch application data from db
@@ -291,9 +292,9 @@ export class BenefitsService {
       confirmData["message"] = {
         "order": {
           ...confirmDto.message.order,
-          provider: [{ id, descriptor, rateable, locations, categories }],
+          provider: { id, descriptor, rateable, locations, },
           items,
-          id: orderDetails.orderId,
+          id: orderDetails.orderId || "",
         }
       };
 
