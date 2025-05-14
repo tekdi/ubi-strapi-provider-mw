@@ -340,9 +340,12 @@ export class BenefitsService {
     const statusCode = status === 'APPROVED' ? {
       "code": "APPLICATION-APPROVED",
       "name": "Application Approved"
-    } : {
+    } : status === 'REJECTED' ? {
       "code": "APPLICATION-REJECTED",
       "name": "Application Rejected"
+    } : {
+      "code": "APPLICATION-" + status, // from db 
+      "name": "Application " + application.status
     };
 
 
