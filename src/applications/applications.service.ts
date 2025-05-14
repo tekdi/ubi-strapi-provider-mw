@@ -1,13 +1,14 @@
-import { Injectable,Inject, NotFoundException,forwardRef } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
-import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
+import { isArray } from 'class-validator';
 
 @Injectable()
 export class ApplicationsService {
@@ -15,7 +16,7 @@ export class ApplicationsService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => BenefitsService))
     private readonly benefitsService: BenefitsService
-  ) {}
+  ) { }
 
   // Create a new application
   async create(data: any) {
@@ -104,25 +105,25 @@ export class ApplicationsService {
     });
 
     // Enrich applications with benefit details
-   let benefitDetails
-        try {
-           benefitDetails = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-          
-        } catch (error) {
-          console.error(`Error fetching benefit details for application22:`, error.message);
-         
+    let benefitDetails
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+
+    } catch (error) {
+      console.error(`Error fetching benefit details for application22:`, error.message);
+
+    }
+    if (applications.length > 0) {
+      applications.forEach(application => {
+        (application as any).benefitDetails = {
+          id: benefitDetails?.data?.data?.id,
+          documentId: benefitDetails?.data?.data?.documentId,
+          title: benefitDetails?.data?.data?.title,
+
         }
-      if(applications.length > 0){
-        applications.forEach(application => {
-          (application as any).benefitDetails = {
-            id: benefitDetails?.data?.data?.id,
-            documentId: benefitDetails?.data?.data?.documentId,
-            title: benefitDetails?.data?.data?.title,
-           
-          }
-        })
-      }
-    
+      })
+    }
+
 
     return applications;
   }
@@ -159,23 +160,23 @@ export class ApplicationsService {
         return { ...file, fileContent: null };
       });
     }
-    
+
     let benefitDetails
-        try {
-           benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
-          
-        } catch (error) {
-          console.error(`Error fetching benefit details for application22:`, error.message);
-         
-        }
-      if(application){
-        (application as any).benefitDetails = {
-          id: benefitDetails?.data?.data?.id,
-          documentId: benefitDetails?.data?.data?.documentId,
-          title: benefitDetails?.data?.data?.title,
-         
-        };
-      }
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+
+    } catch (error) {
+      console.error(`Error fetching benefit details for application22:`, error.message);
+
+    }
+    if (application) {
+      (application as any).benefitDetails = {
+        id: benefitDetails?.data?.data?.id,
+        documentId: benefitDetails?.data?.data?.documentId,
+        title: benefitDetails?.data?.data?.title,
+
+      };
+    }
 
     return application;
   }
@@ -198,7 +199,7 @@ export class ApplicationsService {
     });
   }
 
-  async updateStatus(id: number, updateStatusDto: UpdateApplicationStatusDto) {
+  async updateStatus(id: number, updateStatusDto: UpdateApplicationStatusDto, actionLog: UpdateApplicationActionLogDto) {
     const application = await this.prisma.applications.findUnique({
       where: { id },
     });
@@ -207,9 +208,19 @@ export class ApplicationsService {
       throw new NotFoundException(`Application with ID ${id} not found`);
     }
 
+    if (application.actionLog && isArray(application.actionLog)) {
+      application.actionLog.push(
+        this.getActionLogEntry(actionLog, updateStatusDto.status, updateStatusDto.remark)
+      );
+    } else {
+      application.actionLog = [
+        this.getActionLogEntry(actionLog, updateStatusDto.status, updateStatusDto.remark)
+      ];
+    }
+
     const updatedApplication = await this.prisma.applications.update({
       where: { id },
-      data: updateStatusDto
+      data: { ...updateStatusDto, updatedBy: actionLog.updatedBy, actionLog: application.actionLog },
     });
 
     return {
@@ -218,5 +229,14 @@ export class ApplicationsService {
       message: `Application ${updatedApplication.status} successfully`,
       data: updatedApplication,
     };
+  }
+
+  getActionLogEntry(actionLog: UpdateApplicationActionLogDto, status: string, remark: string) {
+    return JSON.stringify({
+      ...actionLog,
+      status,
+      remark
+    })
+
   }
 }

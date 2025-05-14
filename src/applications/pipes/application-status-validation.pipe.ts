@@ -7,7 +7,7 @@ export class ApplicationStatusValidationPipe implements PipeTransform {
 
   transform(value: any) {
     this.logger.debug(`Received value: ${JSON.stringify(value)}`);
-console.log(value,'==========')
+
     if (!value || typeof value !== 'object') {
       throw new BadRequestException('Request body must be an object');
     }
