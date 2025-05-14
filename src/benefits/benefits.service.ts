@@ -9,6 +9,7 @@ import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { titleCase } from 'src/common/util';
 import { PrismaService } from '../prisma.service';
 import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
@@ -345,7 +346,7 @@ export class BenefitsService {
       "name": "Application Rejected"
     } : {
       "code": "APPLICATION-" + status, // from db 
-      "name": "Application " + application.status
+      "name": "Application " + titleCase(application.status)
     };
 
 
