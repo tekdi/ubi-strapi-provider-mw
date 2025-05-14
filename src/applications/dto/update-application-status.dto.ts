@@ -20,4 +20,11 @@ export class UpdateApplicationStatusDto {
     message: `Status must be one of: ${Object.values(ApplicationStatus).join(', ')}`
   })
   status: ApplicationStatus;
+
+  @ApiProperty({
+    description: 'Remark for the status change',
+    example: 'Application approved successfully',
+    required: true
+  })
+  remark: string;
 } 

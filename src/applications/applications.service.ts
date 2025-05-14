@@ -209,15 +209,13 @@ export class ApplicationsService {
 
     const updatedApplication = await this.prisma.applications.update({
       where: { id },
-      data: {
-        status: updateStatusDto.status
-      }
+      data: updateStatusDto
     });
 
     return {
       statusCode: 200,
       status: 'success',
-      message: `Application ${updateStatusDto.status} successfully`,
+      message: `Application ${updatedApplication.status} successfully`,
       data: updatedApplication,
     };
   }
