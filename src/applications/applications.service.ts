@@ -136,6 +136,16 @@ export class ApplicationsService {
     return application;
   }
 
+  async find(where: Prisma.ApplicationsWhereInput) {
+    const application = await this.prisma.applications.findMany({
+      where,
+    })
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
+    return application;
+  }
+
   // Update an application by ID
   async update(id: number, data: Prisma.ApplicationsUpdateInput) {
     return this.prisma.applications.update({
