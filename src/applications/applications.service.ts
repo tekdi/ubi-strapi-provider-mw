@@ -8,15 +8,12 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
-<<<<<<< HEAD
 
 export interface BenefitDetail {
   id: string;
   documentId: string;
   name: string;
 }
-=======
->>>>>>> 2f8ae3e27698afcf3999ed586ba140bbfc1a0c1c
 
 @Injectable()
 export class ApplicationsService {
@@ -162,20 +159,24 @@ export class ApplicationsService {
       });
     }
     
-    const benefit: BenefitDetail[] = [];
-    try {
-      const benefitDetail = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
-      const obj = {
-        id: benefitDetail?.data?.data?.id,
-        documentId: benefitDetail?.data?.data?.documentId,
-        name: benefitDetail?.data?.data?.title,
+    let benefitDetails
+        try {
+           benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+          
+        } catch (error) {
+          console.error(`Error fetching benefit details for application22:`, error.message);
+         
+        }
+      if(application){
+        (application as any).benefitDetails = {
+          id: benefitDetails?.data?.data?.id,
+          documentId: benefitDetails?.data?.data?.documentId,
+          title: benefitDetails?.data?.data?.title,
+         
+        };
       }
-      benefit.push(obj)
-    } catch (error) {
-      console.error(`Error fetching benefit details for application22:`, error.message);
-    }     
 
-    return {application, benefit};
+    return application;
   }
 
   async find(where: Prisma.ApplicationsWhereInput) {

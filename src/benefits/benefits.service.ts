@@ -276,11 +276,7 @@ export class BenefitsService {
 
       // Fetch application data from db
       const benefit = await this.applicationsService.findOne(Number(applicationId));
-<<<<<<< HEAD
-      const benefitData = await this.getBenefitsById(benefit.application.benefitId); // from strapi
-=======
       const benefitData = await this.getBenefitsById(benefit.benefitId); // from strapi
->>>>>>> 2f8ae3e27698afcf3999ed586ba140bbfc1a0c1c
 
       let mappedResponse;
       if (benefitData?.data) {
@@ -291,7 +287,7 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.application?.orderId ? benefit.application.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;  
+      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;  
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
@@ -362,7 +358,7 @@ export class BenefitsService {
       billing: {
         name: 'N/A',
         phone: 'N/A',
-        email: 'dummyemail@dummydomain.com',
+        email: 'N/A',
         address: 'N/A',
         organization: {
           "descriptor": {
