@@ -336,7 +336,16 @@ export class BenefitsService {
     const benefitData = await this.getBenefitsById(application.benefitId); // from strapi
 
     // Extract status from application data and add it to benefit data
-  
+    const status = application.status.toUpperCase();
+    const statusCode = status === 'APPROVED' ? {
+      "code": "APPLICATION-APPROVED",
+      "name": "Application Approved"
+    } : {
+      "code": "APPLICATION-REJECTED",
+      "name": "Application Rejected"
+    };
+
+
     // Prepare the status object
     const metadata = {
       billing: {
@@ -373,11 +382,9 @@ export class BenefitsService {
         tracking: false,
         state: {
           descriptor: {
-            code: 'active',
-            name: 'Active',
+            ...statusCode
           },
           updated_at: new Date().toISOString(),
-          state: 'ACTIVE',
         },
         agent: {
           "person": {
