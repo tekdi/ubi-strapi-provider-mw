@@ -110,15 +110,15 @@ export class ApplicationsService {
     });
 
     // Enrich applications with benefit details
-    const benefit: BenefitDetail[] = [];
+    let benefit: BenefitDetail | null = null;
     try {
       const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-      const obj = {
+       benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
         name: benefitDetail?.data?.data?.title,
       }
-      benefit.push(obj)
+     
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
     }     
@@ -168,12 +168,12 @@ export class ApplicationsService {
          
         }
       if(application){
-        (application as any).benefit = [{
+        (application as any).benefit = {
           id: benefitDetails?.data?.data?.id,
           documentId: benefitDetails?.data?.data?.documentId,
-          name: benefitDetails?.data?.data?.title,
+          title: benefitDetails?.data?.data?.title,
          
-        }];
+        };
       }
 
     return application;
