@@ -40,7 +40,6 @@ export class ApplicationsService {
         status,
         customerId,
         bapId,
-        remark : data?.remark,
         applicationData: normalFields,
       },
     });
