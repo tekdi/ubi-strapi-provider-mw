@@ -15,17 +15,17 @@ export class VerificationService {
     // Fetch application files for the given applicationId
     const applicationFiles = await this.getApplicationFilesByApplicationId(Number(applicationId));
 
-    console.log('Application Files:', applicationFiles);
-    // Use mock file paths if filePath is empty
-    const mockFilePaths = [
-      './src/verifications/mock-files/file1.json',
-      './src/verifications/mock-files/file2.json',
-    ];
-    applicationFiles.forEach((file, index) => {
-      if (!file.filePath) {
-        file.filePath = mockFilePaths[index] || '';
-      }
-    });
+    // console.log('Application Files:', applicationFiles);
+    // // Use mock file paths if filePath is empty
+    // const mockFilePaths = [
+    //   './src/verifications/mock-files/file1.json',
+    //   './src/verifications/mock-files/file2.json',
+    // ];
+    // applicationFiles.forEach((file, index) => {
+    //   if (!file.filePath) {
+    //     file.filePath = mockFilePaths[index] || '';
+    //   }
+    // });
 
     const verificationResults: { filePath: string; isValid: boolean; message: string }[] = [];
     // Read and parse JSON content of each filePath
