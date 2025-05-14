@@ -12,7 +12,7 @@ import { BenefitsService } from 'src/benefits/benefits.service';
 export interface BenefitDetail {
   id: string;
   documentId: string;
-  name: string;
+  title: string;
 }
 
 @Injectable()
