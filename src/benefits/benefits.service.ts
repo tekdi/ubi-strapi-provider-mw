@@ -97,7 +97,7 @@ export class BenefitsService {
         // Map through the results and fetch application details
         response.data.results.map(async (benefit) => {
           let benefitApplications = await this.prisma.applications.findMany({
-            where: { benefitId: String(benefit.id) },
+            where: { benefitId: String(benefit.document_id) },
           });
 
           let pendingBenefitApplications = 0;
