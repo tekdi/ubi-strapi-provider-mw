@@ -6,8 +6,10 @@ import { CreateApplicationFilesDto } from './dto/create-applicationfiles.dto';
 import { UpdateApplicationFilesDto } from './dto/update-applicationfiles.dto';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { ApplicationFilesApiDocs } from '../docs';
+
 @UseFilters(new AllExceptionsFilter())
-@ApiTags('ApplicationFiles') // Grouping the endpoints under "ApplicationFiles" in Swagger
+@ApiTags('ApplicationFiles')
 @Controller('application-files')
 export class ApplicationFilesController {
   constructor(private readonly ApplicationFilesService: ApplicationFilesService) {}
@@ -15,10 +17,10 @@ export class ApplicationFilesController {
   // Create a new ApplicationFile
   @Post()
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Create a new ApplicationFile' })
-  @ApiBody({ description: 'ApplicationFile data', type: CreateApplicationFilesDto })
-  @ApiResponse({ status: 201, description: 'ApplicationFile created successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiOperation(ApplicationFilesApiDocs.create.operation)
+  @ApiBody(ApplicationFilesApiDocs.create.body)
+  @ApiResponse(ApplicationFilesApiDocs.create.responses.success)
+  @ApiResponse(ApplicationFilesApiDocs.create.responses.badRequest)
   async create(@Body() data: CreateApplicationFilesDto) {
     const applicationFileData: Prisma.ApplicationFilesUncheckedCreateInput = {
       ...data,
@@ -30,8 +32,8 @@ export class ApplicationFilesController {
   // Get all ApplicationFiles
   @Get()
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get all ApplicationFiles' })
-  @ApiResponse({ status: 200, description: 'List of ApplicationFiles retrieved successfully' })
+  @ApiOperation(ApplicationFilesApiDocs.findAll.operation)
+  @ApiResponse(ApplicationFilesApiDocs.findAll.responses.success)
   async findAll() {
     return this.ApplicationFilesService.findAll();
   }
@@ -39,10 +41,10 @@ export class ApplicationFilesController {
   // Get a single ApplicationFile by ID
   @Get(':id')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get a single ApplicationFile by ID' })
-  @ApiParam({ name: 'id', description: 'ApplicationFile ID', type: Number })
-  @ApiResponse({ status: 200, description: 'ApplicationFile retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'ApplicationFile not found' })
+  @ApiOperation(ApplicationFilesApiDocs.findOne.operation)
+  @ApiParam(ApplicationFilesApiDocs.findOne.param)
+  @ApiResponse(ApplicationFilesApiDocs.findOne.responses.success)
+  @ApiResponse(ApplicationFilesApiDocs.findOne.responses.notFound)
   async findOne(@Param('id') id: string) {
     return this.ApplicationFilesService.findOne(Number(id));
   }
@@ -50,12 +52,12 @@ export class ApplicationFilesController {
   // Update an ApplicationFile by ID
   @Patch(':id')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Update an ApplicationFile by ID' })
-  @ApiParam({ name: 'id', description: 'ApplicationFile ID', type: Number })
-  @ApiBody({ description: 'Updated ApplicationFile data', type: UpdateApplicationFilesDto })
-  @ApiResponse({ status: 200, description: 'ApplicationFile updated successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
-  @ApiResponse({ status: 404, description: 'ApplicationFile not found' })
+  @ApiOperation(ApplicationFilesApiDocs.update.operation)
+  @ApiParam(ApplicationFilesApiDocs.update.param)
+  @ApiBody(ApplicationFilesApiDocs.update.body)
+  @ApiResponse(ApplicationFilesApiDocs.update.responses.success)
+  @ApiResponse(ApplicationFilesApiDocs.update.responses.badRequest)
+  @ApiResponse(ApplicationFilesApiDocs.update.responses.notFound)
   async update(@Param('id') id: string, @Body() data: UpdateApplicationFilesDto) {
     return this.ApplicationFilesService.update(Number(id), data);
   }
