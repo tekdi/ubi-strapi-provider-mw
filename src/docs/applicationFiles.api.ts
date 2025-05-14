@@ -10,12 +10,10 @@ export const ApplicationFilesApiDocs = {
       description: 'ApplicationFile data',
       schema: {
         example: {
-          applicationId: 1,
-          fileName: 'identity_proof.pdf',
-          fileType: 'application/pdf',
-          fileSize: 1024,
+          applicationId: '1',
+          filePath: 'identity_proof.pdf',
           storage: 'local',
-          metadata: {
+          verificationStatus: {
             documentType: 'identity_proof',
             uploadDate: '2024-03-20T10:00:00Z'
           }
@@ -29,15 +27,13 @@ export const ApplicationFilesApiDocs = {
         schema: {
           example: {
             id: 1,
-            applicationId: 1,
-            fileName: 'identity_proof.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1024,
-            storage: 'local',
-            metadata: {
-              documentType: 'identity_proof',
-              uploadDate: '2024-03-20T10:00:00Z'
-            },
+            applicationId: '1',
+          filePath: 'identity_proof.pdf',
+          storage: 'local',
+          verificationStatus: {
+            documentType: 'identity_proof',
+            uploadDate: '2024-03-20T10:00:00Z'
+          },
             createdAt: '2024-03-20T10:00:00Z',
             updatedAt: '2024-03-20T10:00:00Z'
           }
@@ -64,15 +60,13 @@ export const ApplicationFilesApiDocs = {
             data: [
               {
                 id: 1,
-                applicationId: 1,
-                fileName: 'identity_proof.pdf',
-                fileType: 'application/pdf',
-                fileSize: 1024,
-                storage: 'local',
-                metadata: {
-                  documentType: 'identity_proof',
-                  uploadDate: '2024-03-20T10:00:00Z'
-                },
+                applicationId: '1',
+          filePath: 'identity_proof.pdf',
+          storage: 'local',
+          verificationStatus: {
+            documentType: 'identity_proof',
+            uploadDate: '2024-03-20T10:00:00Z'
+          },
                 createdAt: '2024-03-20T10:00:00Z',
                 updatedAt: '2024-03-20T10:00:00Z'
               }
@@ -101,12 +95,10 @@ export const ApplicationFilesApiDocs = {
         schema: {
           example: {
             id: 1,
-            applicationId: 1,
-            fileName: 'identity_proof.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1024,
+            applicationId: '1',
+            filePath: 'identity_proof.pdf',
             storage: 'local',
-            metadata: {
+            verificationStatus: {
               documentType: 'identity_proof',
               uploadDate: '2024-03-20T10:00:00Z'
             },

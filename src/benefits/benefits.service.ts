@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Injectable,
+  Inject,
   InternalServerErrorException,
+  forwardRef
 } from '@nestjs/common';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
@@ -34,7 +36,8 @@ export class BenefitsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly applicationService: ApplicationsService,
+    @Inject(forwardRef(() => ApplicationsService))
+    private readonly applicationsService: ApplicationsService,
     private prisma: PrismaService,
   ) {
     this.strapiUrl = this.configService.get('STRAPI_URL') || '';
@@ -272,7 +275,7 @@ export class BenefitsService {
       const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
       // Fetch application data from db
-      const benefit = await this.applicationService.findOne(Number(applicationId));
+      const benefit = await this.applicationsService.findOne(Number(applicationId));
       const benefitData = await this.getBenefitsById(benefit.benefitId); // from strapi
 
       let mappedResponse;
@@ -287,7 +290,7 @@ export class BenefitsService {
       const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;
 
       // Update customer details
-      const orderDetails = await this.applicationService.update(Number(applicationId), { orderId });
+      const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
 
       const { id, descriptor, categories, locations, items, rateable }: any =
         mappedResponse?.message.catalog.providers[0];
@@ -322,7 +325,7 @@ export class BenefitsService {
     const orderId = statusDto?.message?.order_id;
 
     // Fetch application details using the order ID
-    const applicationData = await this.applicationService.find({
+    const applicationData = await this.applicationsService.find({
       orderId,
     });
 
