@@ -358,7 +358,7 @@ export class BenefitsService {
       billing: {
         name: 'N/A',
         phone: 'N/A',
-        email: 'N/A',
+        email: 'dummyemail@dummydomain.com',
         address: 'N/A',
         organization: {
           "descriptor": {
