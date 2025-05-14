@@ -8,12 +8,15 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
+<<<<<<< HEAD
 
 export interface BenefitDetail {
   id: string;
   documentId: string;
   name: string;
 }
+=======
+>>>>>>> 2f8ae3e27698afcf3999ed586ba140bbfc1a0c1c
 
 @Injectable()
 export class ApplicationsService {

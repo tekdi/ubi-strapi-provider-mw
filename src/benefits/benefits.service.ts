@@ -276,7 +276,11 @@ export class BenefitsService {
 
       // Fetch application data from db
       const benefit = await this.applicationsService.findOne(Number(applicationId));
+<<<<<<< HEAD
       const benefitData = await this.getBenefitsById(benefit.application.benefitId); // from strapi
+=======
+      const benefitData = await this.getBenefitsById(benefit.benefitId); // from strapi
+>>>>>>> 2f8ae3e27698afcf3999ed586ba140bbfc1a0c1c
 
       let mappedResponse;
       if (benefitData?.data) {
@@ -358,7 +362,7 @@ export class BenefitsService {
       billing: {
         name: 'N/A',
         phone: 'N/A',
-        email: 'N/A',
+        email: 'dummyemail@dummydomain.com',
         address: 'N/A',
         organization: {
           "descriptor": {
