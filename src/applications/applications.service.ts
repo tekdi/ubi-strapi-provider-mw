@@ -168,12 +168,12 @@ export class ApplicationsService {
          
         }
       if(application){
-        (application as any).benefitDetails = {
+        (application as any).benefit = [{
           id: benefitDetails?.data?.data?.id,
           documentId: benefitDetails?.data?.data?.documentId,
-          title: benefitDetails?.data?.data?.title,
+          name: benefitDetails?.data?.data?.title,
          
-        };
+        }];
       }
 
     return application;
