@@ -111,6 +111,38 @@ export class ApplicationsService {
     if (!application) {
       throw new NotFoundException('Applications not found');
     }
+
+    // Add base64 file content to each applicationFile
+    if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
+      application.applicationFiles = application.applicationFiles.map(file => {
+        if (file.filePath) {
+          try {
+            const absPath = path.isAbsolute(file.filePath)
+              ? file.filePath
+              : path.join(process.cwd(), file.filePath);
+            if (fs.existsSync(absPath)) {
+              const fileBuffer = fs.readFileSync(absPath);
+              const base64Content = fileBuffer.toString('base64');
+              return { ...file, fileContent: base64Content };
+            }
+          } catch (err) {
+            // Optionally log error
+          }
+        }
+        return { ...file, fileContent: null };
+      });
+    }
+
+    return application;
+  }
+
+  async find(where: Prisma.ApplicationsWhereInput) {
+    const application = await this.prisma.applications.findMany({
+      where,
+    })
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
     return application;
   }
 
