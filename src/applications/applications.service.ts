@@ -116,7 +116,7 @@ export class ApplicationsService {
        benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
-        name: benefitDetail?.data?.data?.title,
+        title: benefitDetail?.data?.data?.title,
       }
      
     } catch (error) {
