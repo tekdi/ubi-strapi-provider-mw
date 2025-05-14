@@ -9,6 +9,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
 
+export interface BenefitDetail {
+  id: string;
+  documentId: string;
+  name: string;
+}
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -104,27 +110,20 @@ export class ApplicationsService {
     });
 
     // Enrich applications with benefit details
-   let benefitDetails
-        try {
-           benefitDetails = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-          
-        } catch (error) {
-          console.error(`Error fetching benefit details for application22:`, error.message);
-         
-        }
-      if(applications.length > 0){
-        applications.forEach(application => {
-          (application as any).benefitDetails = {
-            id: benefitDetails?.data?.data?.id,
-            documentId: benefitDetails?.data?.data?.documentId,
-            title: benefitDetails?.data?.data?.title,
-           
-          }
-        })
+    const benefit: BenefitDetail[] = [];
+    try {
+      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+      const obj = {
+        id: benefitDetail?.data?.data?.id,
+        documentId: benefitDetail?.data?.data?.documentId,
+        name: benefitDetail?.data?.data?.title,
       }
-    
+      benefit.push(obj)
+    } catch (error) {
+      console.error(`Error fetching benefit details for application22:`, error.message);
+    }     
 
-    return applications;
+    return {applications, benefit};
   }
 
   // Get a single application by ID
@@ -169,12 +168,12 @@ export class ApplicationsService {
          
         }
       if(application){
-        (application as any).benefitDetails = {
+        (application as any).benefit = [{
           id: benefitDetails?.data?.data?.id,
           documentId: benefitDetails?.data?.data?.documentId,
-          title: benefitDetails?.data?.data?.title,
+          name: benefitDetails?.data?.data?.title,
          
-        };
+        }];
       }
 
     return application;
