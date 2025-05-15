@@ -62,7 +62,25 @@ export class VerificationService {
 
         try {
           const fileContent = await fs.readFile(file.filePath, 'utf-8');
-          const parsedData = JSON.parse(fileContent);
+
+          // Try to detect if the content is URL-encoded
+          let content = fileContent;
+          if (fileContent.trim().startsWith('%')) {
+            try {
+              content = decodeURIComponent(fileContent);
+            } catch (decodeError) {
+              console.error('Failed to decode URI component:', decodeError);
+              throw decodeError;
+            }
+          }
+
+          let parsedData;
+          try {
+            parsedData = JSON.parse(content);
+          } catch (parseError) {
+            console.error('Failed to parse JSON file:', parseError);
+            throw parseError;
+          }
 
           const response = await lastValueFrom(
             this.httpService.post(apiUrl, { credential: parsedData })
