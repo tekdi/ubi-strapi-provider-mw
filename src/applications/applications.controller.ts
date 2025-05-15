@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe, UseGuards, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
 import { UpdateApplicationsDto } from './dto/update-applications.dto';
@@ -74,7 +74,8 @@ export class ApplicationsController {
 
   @Get('/reports/csvexport')
   @ApiOperation({ summary: 'Export applications as CSV', description: 'Exports applications for a given benefitId and report type as a CSV file.' })
-  // @ApiBody({ type: CsvExportApplicationsDto })
+  @ApiQuery({ name: 'benefitId', type: String, required: true })
+  @ApiQuery({ name: 'type', type: String, required: true })
   @ApiResponse({ status: 200, description: 'CSV file with applications data', schema: { type: 'string', format: 'binary' } })
   @ApiResponse({ status: 400, description: 'Missing or invalid parameters' })
   async csvexport(@Query() dto: CsvExportApplicationsDto, @Res() res: Response) {
@@ -83,10 +84,14 @@ export class ApplicationsController {
       throw new BadRequestException('benefitId and type are required');
     }
 
-    const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
-    
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
-    res.send(csv);
+       try {
+           const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
+           
+           res.setHeader('Content-Type', 'text/csv');
+           res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
+           res.send(csv);
+         } catch (error) {
+           throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+         }
   }
 }

@@ -235,27 +235,22 @@ export class ApplicationsService {
     const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields || [];
     const applicationTableDataFields = reportConfig.applicationTableDataFields || [];
 
-    let dynamicAppDataFields: string[] = [];
-    let csvRows: string[] = [];
-    const applications = await this.prisma.applications.findMany({
-      where: { benefitId: benefitId },
-    });
-    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
-      // Fetch applications first to get all keys
-     
-      const fieldSet = new Set<string>();
-      for (const app of applications) {
-        if (app.applicationData && typeof app.applicationData === 'object') {
-          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
-        }
-      }
-      dynamicAppDataFields = Array.from(fieldSet);
-      // CSV header
-      const csvFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
-      csvRows = [csvFields.join(',')];
-      // Prepare CSV rows
+    let applications: any[] = [];
+    try {
+      applications = await this.prisma.applications.findMany({
+        where: { benefitId: benefitId },
+      });
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
+    }
+
+    const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
+      // Helper function to generate CSV rows
+      const csvRows = [headerFields.join(',')];
+      
       for (const [i, app] of applications.entries()) {
-        const row: string[] = [];
+        const row: (string | number)[] = [];
+        
         // Auto-generate fields
         for (const field of autoGenerateFields) {
           if (field === 'serialNumber') {
@@ -264,43 +259,42 @@ export class ApplicationsService {
             row.push('');
           }
         }
-        // All applicationData fields
-        for (const field of dynamicAppDataFields) {
-          row.push(app.applicationData && app.applicationData[field] !== undefined ? app.applicationData[field] : '');
+        
+        // Application data fields
+        for (const field of appDataFields) {
+          row.push(app.applicationData && app.applicationData[field] !== undefined 
+            ? app.applicationData[field] 
+            : '');
         }
-        // applicationTableDataFields
+        
+        // Application table data fields
         for (const field of applicationTableDataFields) {
           row.push(app[field] !== undefined ? app[field] : '');
         }
+        
         csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
       }
+      
       return csvRows.join('\n');
-    }
+    };
 
-    // Add CSV header row
-    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
-    csvRows = [headerFields.join(',')];
-    // Prepare CSV rows
-    for (const [i, app] of applications.entries()) {
-      const row: string[] = [];
-      // Auto-generate fields
-      for (const field of autoGenerateFields) {
-        if (field === 'serialNumber') {
-          row.push((i + 1).toString());
-        } else {
-          row.push(''); // Add logic for other auto fields if needed
+    let dynamicAppDataFields: string[] = [];
+    
+    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
+      // Fetch applications first to get all keys
+      const fieldSet = new Set<string>();
+      for (const app of applications) {
+        if (app.applicationData && typeof app.applicationData === 'object') {
+          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
         }
       }
-      // applicationDataColumnDataFields
-      for (const field of applicationDataColumnDataFields) {
-        row.push(app.applicationData && app.applicationData[field] !== undefined ? app.applicationData[field] : '');
-      }
-      // applicationTableDataFields
-      for (const field of applicationTableDataFields) {
-        row.push(app[field] !== undefined ? app[field] : '');
-      }
-      csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+      dynamicAppDataFields = Array.from(fieldSet);
+
+      const headerFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
+      return generateCsvRows(applications, headerFields, dynamicAppDataFields);
     }
-    return csvRows.join('\n');
+
+    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
+    return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
 }

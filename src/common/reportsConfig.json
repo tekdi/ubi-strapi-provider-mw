@@ -19,7 +19,6 @@
 			"bankName",
 			"bankAddress",
 			"branchCode",
-			"bankAccountNumber",
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
@@ -35,7 +34,6 @@
 			"bankName",
 			"bankAddress",
 			"branchCode",
-			"bankAccountNumber",
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
