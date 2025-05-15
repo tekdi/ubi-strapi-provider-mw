@@ -10,6 +10,12 @@ import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
 import { isArray } from 'class-validator';
 
+export interface BenefitDetail {
+  id: string;
+  documentId: string;
+  title: string;
+}
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -105,27 +111,20 @@ export class ApplicationsService {
     });
 
     // Enrich applications with benefit details
-    let benefitDetails
+    let benefit: BenefitDetail | null = null;
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-
+      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+       benefit = {
+        id: benefitDetail?.data?.data?.id,
+        documentId: benefitDetail?.data?.data?.documentId,
+        title: benefitDetail?.data?.data?.title,
+      }
+     
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
+    }     
 
-    }
-    if (applications.length > 0) {
-      applications.forEach(application => {
-        (application as any).benefitDetails = {
-          id: benefitDetails?.data?.data?.id,
-          documentId: benefitDetails?.data?.data?.documentId,
-          title: benefitDetails?.data?.data?.title,
-
-        }
-      })
-    }
-
-
-    return applications;
+    return {applications, benefit};
   }
 
   // Get a single application by ID

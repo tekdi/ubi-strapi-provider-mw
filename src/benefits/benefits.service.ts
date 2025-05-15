@@ -287,7 +287,7 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;
+      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;  
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
