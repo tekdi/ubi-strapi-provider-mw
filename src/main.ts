@@ -23,6 +23,10 @@ async function bootstrap() {
     .addTag('Benefits', 'Benefits management endpoints')
     .addTag('Applications', 'Application management endpoints')
     .addTag('ApplicationFiles', 'File management endpoints')
+    .addApiKey(
+      { type: 'apiKey', name: 'Authorization', in: 'header' },
+      'access-token',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('documentation', app, document, {

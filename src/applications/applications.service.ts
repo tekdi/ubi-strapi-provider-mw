@@ -1,7 +1,7 @@
-import { Injectable,Inject, NotFoundException,forwardRef, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
-import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -21,7 +21,7 @@ export class ApplicationsService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => BenefitsService))
     private readonly benefitsService: BenefitsService
-  ) {}
+  ) { }
 
   // Create a new application
   async create(data: any) {
@@ -158,23 +158,23 @@ export class ApplicationsService {
         return { ...file, fileContent: null };
       });
     }
-    
+
     let benefitDetails
-        try {
-           benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
-          
-        } catch (error) {
-          console.error(`Error fetching benefit details for application22:`, error.message);
-         
-        }
-      if(application){
-        (application as any).benefit = {
-          id: benefitDetails?.data?.data?.id,
-          documentId: benefitDetails?.data?.data?.documentId,
-          title: benefitDetails?.data?.data?.title,
-         
-        };
-      }
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+
+    } catch (error) {
+      console.error(`Error fetching benefit details for application22:`, error.message);
+
+    }
+    if (application) {
+      (application as any).benefitDetails = {
+        id: benefitDetails?.data?.data?.id,
+        documentId: benefitDetails?.data?.data?.documentId,
+        title: benefitDetails?.data?.data?.title,
+
+      };
+    }
 
     return application;
   }
@@ -197,7 +197,7 @@ export class ApplicationsService {
     });
   }
 
-  async updateStatus(id: number, updateStatusDto: UpdateApplicationStatusDto) {
+  async updateStatus(id: number, updateStatusDto: UpdateApplicationStatusDto, actionLog: UpdateApplicationActionLogDto) {
     const application = await this.prisma.applications.findUnique({
       where: { id },
     });
@@ -206,19 +206,43 @@ export class ApplicationsService {
       throw new NotFoundException(`Application with ID ${id} not found`);
     }
 
+    if (application.actionLog && Array.isArray(application.actionLog)) {
+      application.actionLog.push(
+        this.getActionLogEntry(actionLog, updateStatusDto.status, updateStatusDto.remark)
+      );
+    } else {
+      application.actionLog = [
+        this.getActionLogEntry(actionLog, updateStatusDto.status, updateStatusDto.remark)
+      ];
+    }
+
     const updatedApplication = await this.prisma.applications.update({
       where: { id },
-      data: updateStatusDto
+      data: { ...updateStatusDto, updatedBy: actionLog.updatedBy, actionLog: application.actionLog },
     });
 
     return {
       statusCode: 200,
       status: 'success',
       message: `Application ${updatedApplication.status} successfully`,
-      data: updatedApplication,
+      data: {
+        id: updatedApplication.id,
+        status: updatedApplication.status,
+        benefitId: updatedApplication.benefitId,
+      },
     };
   }
 
+  getActionLogEntry(actionLog: UpdateApplicationActionLogDto, status: string, remark: string) {
+    return JSON.stringify({
+      ...actionLog,
+      status,
+      remark
+    })
+
+  }
+
+  
   async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
@@ -301,4 +325,7 @@ export class ApplicationsService {
     const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
     return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
+
+
+
 }

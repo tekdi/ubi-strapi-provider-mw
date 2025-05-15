@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe, UseGuards, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException,Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth, ApiQuery } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
+import { Request } from 'express';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
 import { UpdateApplicationsDto } from './dto/update-applications.dto';
-import { Prisma } from '@prisma/client';
 import { AllExceptionsFilter } from 'src/common/filters/exception.filters';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
@@ -12,11 +13,13 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
 import { Response } from 'express';
+import { UAParser } from 'ua-parser-js';
+
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications')
 @Controller('applications')
 export class ApplicationsController {
-  constructor(private readonly applicationsService: ApplicationsService) {}
+  constructor(private readonly applicationsService: ApplicationsService) { }
 
   @Post()
   @ApiOperation(ApplicationsApiDocs.create.operation)
@@ -28,6 +31,7 @@ export class ApplicationsController {
   }
 
   @Get()
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findAll.operation)
   @ApiResponse(ApplicationsApiDocs.findAll.responses.success)
@@ -37,6 +41,7 @@ export class ApplicationsController {
   }
 
   @Get(':id')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findOne.operation)
   @ApiParam(ApplicationsApiDocs.findOne.param)
@@ -47,6 +52,7 @@ export class ApplicationsController {
   }
 
   @Patch(':id')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.update.operation)
   @ApiParam(ApplicationsApiDocs.update.param)
@@ -59,6 +65,7 @@ export class ApplicationsController {
   }
 
   @Patch(':id/status')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.updateStatus.operation)
   @ApiParam(ApplicationsApiDocs.updateStatus.param)
@@ -68,8 +75,21 @@ export class ApplicationsController {
   async updateStatus(
     @Param('id') id: string,
     @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
+    @Req() req: Request,
   ) {
-    return this.applicationsService.updateStatus(Number(id), updateStatusDto);
+    const parser = new UAParser();
+
+    const userAgent = req.headers['user-agent'] || '';
+    const uaResult = parser.setUA(userAgent).getResult();
+    const os = [uaResult.os.name, uaResult.os.version].filter(Boolean).join(' ');
+    const browser = [uaResult.browser.name, uaResult.browser.version].filter(Boolean).join(' ');
+    const updatedBy = req.mw_userid;
+    const ip = Array.isArray(req.headers['x-forwarded-for'])
+      ? req.headers['x-forwarded-for'][0]
+      : req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    return this.applicationsService.updateStatus(Number(id), updateStatusDto, {
+      os, browser, updatedBy: Number(updatedBy), ip, updatedAt: new Date()
+    });
   }
 
   @Get('/reports/csvexport')
@@ -95,3 +115,5 @@ export class ApplicationsController {
          }
   }
 }
+  
+
