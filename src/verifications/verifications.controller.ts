@@ -1,25 +1,32 @@
-import { Controller, Post, Body, UseFilters } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Body } from '@nestjs/common';
+import { ApiBody, ApiOperation } from '@nestjs/swagger';
 import { VerificationService } from './verification.service';
-import { VerifyApplicationVcsRequestDto, VerifyApplicationVcsResponseDto } from './dtos';
-import { AllExceptionsFilter } from '../common/filters/exception.filters';
+import { VerifyApplicationVcsRequestDto } from './dtos/verify-application-vcs-request.dto';
+import { VerifyApplicationVcsResponseDto } from './dtos/verify-application-vcs-response.dto';
 
-@UseFilters(new AllExceptionsFilter())
-@ApiTags('Verifications') // Grouping the endpoints under "Verifications" in Swagger
-@Controller('verify')
-export class VerificationsController {
+@Controller('verification')
+export class VerificationController {
   constructor(private readonly verificationService: VerificationService) {}
 
-  @Post('/application-vcs')
-  @ApiOperation({ summary: 'Verify Verifiable Credentials (VCs) for a specific application' })
-  @ApiResponse({
-    status: 200,
-    description: 'Verification result',
-    type: VerifyApplicationVcsResponseDto,
+  @Post('verify-vcs')
+  @ApiOperation({ summary: 'Verify Application VCS' })
+  @ApiBody({
+    type: VerifyApplicationVcsRequestDto,
+    description: 'The application ID to verify',
+    examples: {
+      default: {
+        value: { applicationId: "1" }, // Correctly define the payload structure
+      },
+    },
   })
   async verifyApplicationVcs(
-    @Body() verifyApplicationVcsRequestDto: VerifyApplicationVcsRequestDto,
-  ): Promise<VerifyApplicationVcsResponseDto> {
-    return this.verificationService.verifyApplicationVcs(verifyApplicationVcsRequestDto.applicationId);
+    @Body() verifyApplicationVcsRequestDto: VerifyApplicationVcsRequestDto
+  ): Promise<{
+    isSuccess: boolean;
+    code: number;
+    response: VerifyApplicationVcsResponseDto;
+  }> {
+    const { applicationId } = verifyApplicationVcsRequestDto;
+    return this.verificationService.verifyApplicationVcs(applicationId);
   }
 }
