@@ -34,19 +34,19 @@ export class UpdateApplicationActionLogDto {
     description: 'Operating system of the user',
     example: 'Windows 10',
   })
-  os: string;
+  os?: string;
 
   @ApiProperty({
     description: 'Browser used by the user',
     example: 'Chrome 113.0.5672.127',
   })
-  browser: string;
+  browser?: string;
 
   @ApiProperty({
     description: 'IP address of the user',
     example: '192.168.1.1',
   })
-  ip: string;
+  ip?: string;
 
   @ApiProperty({
     description: 'New status for the application',
