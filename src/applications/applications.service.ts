@@ -225,7 +225,10 @@ export class ApplicationsService {
       statusCode: 200,
       status: 'success',
       message: `Application ${updatedApplication.status} successfully`,
-      data: updatedApplication,
+      data: {
+        benefitId: updatedApplication.benefitId,
+        applicationStatus: updatedApplication.status,
+      },
     };
   }
 
