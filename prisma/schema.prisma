@@ -15,19 +15,21 @@ datasource db {
 }
 
 model Applications {
-  id                Int              @id @default(autoincrement())
-  benefitId         String
-  status            String
-  applicationData   Json             // form fields saved as they are dynamic
-  customerId        String?
-  bapId             String?
-  calculatedAmount  String?
-  finalAmount       String?
-  orderId           String?          // New column added
-  remark            String?          // New column added for remarks
-  applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
-  createdAt         DateTime         @default(now()) // Automatically set on creation
-  updatedAt         DateTime         @updatedAt      // Automatically updated on modification
+  id               Int                @id @default(autoincrement())
+  benefitId        String
+  status           String
+  applicationData  Json // form fields saved as they are dynamic
+  customerId       String?
+  bapId            String?
+  calculatedAmount String?
+  finalAmount      String?
+  orderId          String?
+  remark           String?
+  updatedBy        Int?
+  actionLog        Json?
+  applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
+  createdAt        DateTime           @default(now()) // Automatically set on creation
+  updatedAt        DateTime           @updatedAt // Automatically updated on modification
 }
 
 model ApplicationFiles {
@@ -38,21 +40,21 @@ model ApplicationFiles {
   applicationId      Int
   application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
   createdAt          DateTime     @default(now()) // Automatically set on creation
-  updatedAt          DateTime     @updatedAt      // Automatically updated on modification
+  updatedAt          DateTime     @updatedAt // Automatically updated on modification
 }
 
 model Users {
-  id          Int        @id @default(autoincrement())
-  s_id        String     @unique
-  roles       String[]   // Array of strings to store multiple roles, can be empty
-  s_roles     String[]   // Array of strings to store multiple roles, can be empty
+  id          Int       @id @default(autoincrement())
+  s_id        String    @unique
+  roles       String[] // Array of strings to store multiple roles, can be empty
+  s_roles     String[] // Array of strings to store multiple roles, can be empty
   first_name  String
   middle_name String?
   last_name   String?
-  email       String     @unique
+  email       String    @unique
   phone       String?
-  enabled     Boolean    @default(true)
-  blocked     Boolean    @default(false)
-  createdAt   DateTime   @default(now()) // Automatically set on creation
-  updatedAt   DateTime?  @updatedAt      // Automatically updated on modification
+  enabled     Boolean   @default(true)
+  blocked     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) // Automatically set on creation
+  updatedAt   DateTime? @updatedAt // Automatically updated on modification
 }

@@ -1,14 +1,15 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation } from '@nestjs/swagger';
 import { VerificationService } from './verification.service';
 import { VerifyApplicationVcsRequestDto } from './dtos/verify-application-vcs-request.dto';
 import { VerifyApplicationVcsResponseDto } from './dtos/verify-application-vcs-response.dto';
-
+import { AuthGuard } from 'src/auth/auth.guard';
 @Controller('verification')
 export class VerificationController {
   constructor(private readonly verificationService: VerificationService) {}
 
   @Post('verify-vcs')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Verify Application VCS' })
   @ApiBody({
     type: VerifyApplicationVcsRequestDto,

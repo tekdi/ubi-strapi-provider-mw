@@ -218,7 +218,7 @@ export const ApplicationsApiDocs = {
       schema: {
         example: {
           status: 'Approved',
-          reason: 'All documents verified'
+          remark: 'All documents verified'
         }
       }
     },
