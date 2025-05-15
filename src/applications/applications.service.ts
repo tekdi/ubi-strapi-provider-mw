@@ -269,7 +269,11 @@ export class ApplicationsService {
         
         // Application table data fields
         for (const field of applicationTableDataFields) {
-          row.push(app[field] !== undefined ? app[field] : '');
+          if (field === 'amount') {
+            row.push(app.finalAmount !== undefined ? app.finalAmount : '');
+          } else {
+            row.push(app[field] !== undefined ? app[field] : '');
+          }
         }
         
         csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));

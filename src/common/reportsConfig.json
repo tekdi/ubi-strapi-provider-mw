@@ -7,7 +7,7 @@
 			"*"
 		],
 		"applicationTableDataFields": [
-			"finalAmount"
+			"amount"
 		]
 	},
 	"sbiToOtherBanks": {
@@ -22,7 +22,7 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
-			"finalAmount"
+			"amount"
 		]
 	},
 	"sbiToSbi": {
@@ -37,7 +37,7 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
-			"finalAmount"
+			"amount"
 		]
 	}
 }
