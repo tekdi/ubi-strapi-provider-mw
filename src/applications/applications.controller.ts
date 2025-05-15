@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException,Res } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth, ApiQuery } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { Request } from 'express';
 import { ApplicationsService } from './applications.service';
@@ -11,6 +11,8 @@ import { ListApplicationsDto } from './dto/list-applications.dto';
 import { ApplicationStatusValidationPipe } from './pipes/application-status-validation.pipe';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
+import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
+import { Response } from 'express';
 import { UAParser } from 'ua-parser-js';
 
 @UseFilters(new AllExceptionsFilter())
@@ -89,4 +91,29 @@ export class ApplicationsController {
       os, browser, updatedBy: Number(updatedBy), ip, updatedAt: new Date()
     });
   }
+
+  @Get('/reports/csvexport')
+  @ApiOperation({ summary: 'Export applications as CSV', description: 'Exports applications for a given benefitId and report type as a CSV file.' })
+  @ApiQuery({ name: 'benefitId', type: String, required: true })
+  @ApiQuery({ name: 'type', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'CSV file with applications data', schema: { type: 'string', format: 'binary' } })
+  @ApiResponse({ status: 400, description: 'Missing or invalid parameters' })
+  async csvexport(@Query() dto: CsvExportApplicationsDto, @Res() res: Response) {
+    const { benefitId, type } = dto;
+    if (!benefitId || !type) {
+      throw new BadRequestException('benefitId and type are required');
+    }
+
+       try {
+           const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
+           
+           res.setHeader('Content-Type', 'text/csv');
+           res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
+           res.send(csv);
+         } catch (error) {
+           throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+         }
+  }
 }
+  
+
