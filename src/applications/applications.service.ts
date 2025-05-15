@@ -1,14 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable,Inject, NotFoundException,forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
+
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
+import { BenefitsService } from 'src/benefits/benefits.service';
+
+export interface BenefitDetail {
+  id: string;
+  documentId: string;
+  title: string;
+}
+
 @Injectable()
 export class ApplicationsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => BenefitsService))
+    private readonly benefitsService: BenefitsService
+  ) {}
 
   // Create a new application
   async create(data: any) {
@@ -88,15 +101,29 @@ export class ApplicationsService {
     };
   }
 
-  // Get all applications
+  // Get all applications with benefit details
   async findAll(listDto: ListApplicationsDto) {
-    const data = await this.prisma.applications.findMany({
+    const applications = await this.prisma.applications.findMany({
       where: {
         benefitId: listDto.benefitId
       },
     });
 
-    return data;
+    // Enrich applications with benefit details
+    let benefit: BenefitDetail | null = null;
+    try {
+      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+       benefit = {
+        id: benefitDetail?.data?.data?.id,
+        documentId: benefitDetail?.data?.data?.documentId,
+        title: benefitDetail?.data?.data?.title,
+      }
+     
+    } catch (error) {
+      console.error(`Error fetching benefit details for application22:`, error.message);
+    }     
+
+    return {applications, benefit};
   }
 
   // Get a single application by ID
@@ -131,7 +158,34 @@ export class ApplicationsService {
         return { ...file, fileContent: null };
       });
     }
+    
+    let benefitDetails
+        try {
+           benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+          
+        } catch (error) {
+          console.error(`Error fetching benefit details for application22:`, error.message);
+         
+        }
+      if(application){
+        (application as any).benefit = {
+          id: benefitDetails?.data?.data?.id,
+          documentId: benefitDetails?.data?.data?.documentId,
+          title: benefitDetails?.data?.data?.title,
+         
+        };
+      }
 
+    return application;
+  }
+
+  async find(where: Prisma.ApplicationsWhereInput) {
+    const application = await this.prisma.applications.findMany({
+      where,
+    })
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
     return application;
   }
 
@@ -154,15 +208,13 @@ export class ApplicationsService {
 
     const updatedApplication = await this.prisma.applications.update({
       where: { id },
-      data: {
-        status: updateStatusDto.status
-      }
+      data: updateStatusDto
     });
 
     return {
       statusCode: 200,
       status: 'success',
-      message: `Application ${updateStatusDto.status} successfully`,
+      message: `Application ${updatedApplication.status} successfully`,
       data: updatedApplication,
     };
   }

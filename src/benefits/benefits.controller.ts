@@ -18,6 +18,7 @@ import { InitRequestDto } from './dto/init-request.dto';
 import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
+import { StatusRequestDto } from './dto/status-request.dto';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
@@ -85,5 +86,14 @@ export class BenefitsController {
   })
   async confirm(@Body() confirmRequestDto: ConfirmRequestDto) {
     return this.benefitsService.confirm(confirmRequestDto);
+  }
+
+  @Post('dsep/status')
+  @ApiOperation({
+    summary: 'Status',
+    description: 'Handles the status based on the provided data.',
+  })
+  async status(@Body() statusRequestDto: StatusRequestDto) {
+    return this.benefitsService.status(statusRequestDto);
   }
 }

@@ -24,6 +24,7 @@ model Applications {
   calculatedAmount  String?
   finalAmount       String?
   orderId           String?          // New column added
+  remark            String?          // New column added for remarks
   applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt         DateTime         @default(now()) // Automatically set on creation
   updatedAt         DateTime         @updatedAt      // Automatically updated on modification
