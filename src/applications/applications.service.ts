@@ -1,4 +1,4 @@
-import { Injectable,Inject, NotFoundException,forwardRef } from '@nestjs/common';
+import { Injectable,Inject, NotFoundException,forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
-
+import reportsConfig from '../common/reportsConfig.json';
 export interface BenefitDetail {
   id: string;
   documentId: string;
@@ -217,5 +217,90 @@ export class ApplicationsService {
       message: `Application ${updatedApplication.status} successfully`,
       data: updatedApplication,
     };
+  }
+
+  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+    if (!benefitId || !reportType) {
+      throw new BadRequestException('benefitId and type are required');
+    }
+
+    const reports = reportsConfig;
+
+    // Get report config
+    const reportConfig = reports[reportType];
+    if (!reportConfig) {
+      throw new BadRequestException('Invalid report type');
+    }
+    const autoGenerateFields = reportConfig.autoGenerateFields || [];
+    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields || [];
+    const applicationTableDataFields = reportConfig.applicationTableDataFields || [];
+
+    let dynamicAppDataFields: string[] = [];
+    let csvRows: string[] = [];
+    const applications = await this.prisma.applications.findMany({
+      where: { benefitId: benefitId },
+    });
+    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
+      // Fetch applications first to get all keys
+     
+      const fieldSet = new Set<string>();
+      for (const app of applications) {
+        if (app.applicationData && typeof app.applicationData === 'object') {
+          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
+        }
+      }
+      dynamicAppDataFields = Array.from(fieldSet);
+      // CSV header
+      const csvFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
+      csvRows = [csvFields.join(',')];
+      // Prepare CSV rows
+      for (const [i, app] of applications.entries()) {
+        const row: string[] = [];
+        // Auto-generate fields
+        for (const field of autoGenerateFields) {
+          if (field === 'serialNumber') {
+            row.push((i + 1).toString());
+          } else {
+            row.push('');
+          }
+        }
+        // All applicationData fields
+        for (const field of dynamicAppDataFields) {
+          row.push(app.applicationData && app.applicationData[field] !== undefined ? app.applicationData[field] : '');
+        }
+        // applicationTableDataFields
+        for (const field of applicationTableDataFields) {
+          row.push(app[field] !== undefined ? app[field] : '');
+        }
+        csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+      }
+      return csvRows.join('\n');
+    }
+
+    // Add CSV header row
+    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
+    csvRows = [headerFields.join(',')];
+    // Prepare CSV rows
+    for (const [i, app] of applications.entries()) {
+      const row: string[] = [];
+      // Auto-generate fields
+      for (const field of autoGenerateFields) {
+        if (field === 'serialNumber') {
+          row.push((i + 1).toString());
+        } else {
+          row.push(''); // Add logic for other auto fields if needed
+        }
+      }
+      // applicationDataColumnDataFields
+      for (const field of applicationDataColumnDataFields) {
+        row.push(app.applicationData && app.applicationData[field] !== undefined ? app.applicationData[field] : '');
+      }
+      // applicationTableDataFields
+      for (const field of applicationTableDataFields) {
+        row.push(app[field] !== undefined ? app[field] : '');
+      }
+      csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+    }
+    return csvRows.join('\n');
   }
 }
