@@ -8,7 +8,6 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
-import { isArray } from 'class-validator';
 
 export interface BenefitDetail {
   id: string;
@@ -207,7 +206,7 @@ export class ApplicationsService {
       throw new NotFoundException(`Application with ID ${id} not found`);
     }
 
-    if (application.actionLog && isArray(application.actionLog)) {
+    if (application.actionLog && Array.isArray(application.actionLog)) {
       application.actionLog.push(
         this.getActionLogEntry(actionLog, updateStatusDto.status, updateStatusDto.remark)
       );

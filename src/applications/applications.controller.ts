@@ -15,7 +15,6 @@ import { UAParser } from 'ua-parser-js';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications')
-@ApiBasicAuth('access-token')
 @Controller('applications')
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) { }
@@ -30,6 +29,7 @@ export class ApplicationsController {
   }
 
   @Get()
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findAll.operation)
   @ApiResponse(ApplicationsApiDocs.findAll.responses.success)
@@ -39,6 +39,7 @@ export class ApplicationsController {
   }
 
   @Get(':id')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findOne.operation)
   @ApiParam(ApplicationsApiDocs.findOne.param)
@@ -49,6 +50,7 @@ export class ApplicationsController {
   }
 
   @Patch(':id')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.update.operation)
   @ApiParam(ApplicationsApiDocs.update.param)
@@ -61,6 +63,7 @@ export class ApplicationsController {
   }
 
   @Patch(':id/status')
+  @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.updateStatus.operation)
   @ApiParam(ApplicationsApiDocs.updateStatus.param)
