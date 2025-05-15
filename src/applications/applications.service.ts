@@ -226,8 +226,9 @@ export class ApplicationsService {
       status: 'success',
       message: `Application ${updatedApplication.status} successfully`,
       data: {
+        id: updatedApplication.id,
+        status: updatedApplication.status,
         benefitId: updatedApplication.benefitId,
-        applicationStatus: updatedApplication.status,
       },
     };
   }
