@@ -74,7 +74,7 @@ export class ApplicationsController {
 
   @Get('/reports/csvexport')
   @ApiOperation({ summary: 'Export applications as CSV', description: 'Exports applications for a given benefitId and report type as a CSV file.' })
-  @ApiBody({ type: CsvExportApplicationsDto })
+  // @ApiBody({ type: CsvExportApplicationsDto })
   @ApiResponse({ status: 200, description: 'CSV file with applications data', schema: { type: 'string', format: 'binary' } })
   @ApiResponse({ status: 400, description: 'Missing or invalid parameters' })
   async csvexport(@Query() dto: CsvExportApplicationsDto, @Res() res: Response) {
