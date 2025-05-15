@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseFilters, BadRequestException, UsePipes, ValidationPipe, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { Request } from 'express';
@@ -79,8 +79,8 @@ export class ApplicationsController {
 
     const userAgent = req.headers['user-agent'] || '';
     const uaResult = parser.setUA(userAgent).getResult();
-    const os = uaResult.os.name + ' ' + uaResult.os.version;
-    const browser = uaResult.browser.name + ' ' + uaResult.browser.version;
+    const os = [uaResult.os.name, uaResult.os.version].filter(Boolean).join(' ');
+    const browser = [uaResult.browser.name, uaResult.browser.version].filter(Boolean).join(' ');
     const updatedBy = req.mw_userid;
     const ip = Array.isArray(req.headers['x-forwarded-for'])
       ? req.headers['x-forwarded-for'][0]
