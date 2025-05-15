@@ -26,9 +26,9 @@ export class VerificationService {
       return this.buildResponse(false, 404, 'No application files found for the given application ID', applicationId, [], 'unverified');
     }
 
-    const apiUrl = process.env.UBI_VERIFICATION_API;
+    const apiUrl = process.env.VERIFICATION_SERVICE_URL;
     if (!apiUrl) {
-      return this.buildResponse(false, 500, 'UBI_VERIFICATION_API is not defined in environment variables', applicationId, [], 'unverified');
+      return this.buildResponse(false, 500, 'VERIFICATION_SERVICE_URL is not defined in environment variables', applicationId, [], 'unverified');
     }
 
     const verificationResults: {
