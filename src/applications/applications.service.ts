@@ -66,23 +66,26 @@ export class ApplicationsService {
     // Process base64 fields
     const applicationFiles: ApplicationFiles[] = [];
     for (const { key, value } of base64Fields) {
-      // Remove the 'base64,' prefix from the value to get the actual base64 content
-      const base64Content = value.replace(/^base64,/, '');
-
-      // Generate a unique filename using applicationId, key, timestamp, and a random number
+      // A - Process base64 fields for uploads
+      // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
       let filename = `${applicationId}_${key}_${Date.now()}_${Math.floor(Math.random() * 10000)}.json`;
 
-      // Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
+      // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
         .replace(/[^a-zA-Z0-9-_\.]/g, '') // keep alphanumeric, dash, underscore, dot
         .replace(/\s+/g, '') // remove spaces
         .toLowerCase();
-
       const filePath = path.join(uploadsDir, filename);
-      const decodedContent = Buffer.from(base64Content, 'base64');
-      fs.writeFileSync(filePath, decodedContent);
 
-      // Save ApplicationFiles record
+      // A2.1 - Remove base64, from start of the content
+      const base64Content = value.replace(/^base64,/, '');
+      // A2.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
+      const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
+      // A2.3 - URL-decode to get the original content
+      const decodedContent = decodeURIComponent(urlEncoded);
+      fs.writeFileSync(filePath, decodedContent, 'utf-8');
+      
+      // B - Save ApplicationFiles record
       const appFile = await this.prisma.applicationFiles.create({
         data: {
           storage: 'local',
