@@ -41,8 +41,8 @@ export class ApplicationsController {
   }
 
   @Get(':id')
-  @ApiBasicAuth('access-token')
-  @UseGuards(AuthGuard)
+  // @ApiBasicAuth('access-token')
+  // @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findOne.operation)
   @ApiParam(ApplicationsApiDocs.findOne.param)
   @ApiResponse(ApplicationsApiDocs.findOne.responses.success)
@@ -113,6 +113,17 @@ export class ApplicationsController {
          } catch (error) {
            throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
          }
+  }
+
+  @Get('calculate-benefit/:id')
+  // @ApiBasicAuth('access-token')
+  // @UseGuards(AuthGuard)
+  // @ApiOperation(ApplicationsApiDocs.findOne.operation)
+  // @ApiParam(ApplicationsApiDocs.findOne.param)
+  // @ApiResponse(ApplicationsApiDocs.findOne.responses.success)
+  // @ApiResponse(ApplicationsApiDocs.findOne.responses.notFound)
+  async calculateBenefit(@Param('id') id: string) {
+    return this.applicationsService.calculateBenefit(Number(id));
   }
 }
   

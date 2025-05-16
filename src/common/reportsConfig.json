@@ -7,7 +7,9 @@
 			"*"
 		],
 		"applicationTableDataFields": [
-			"amount"
+			"amount",
+			"applicationId",
+			"orderId"
 		]
 	},
 	"sbiToOtherBanks": {
@@ -22,7 +24,9 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
-			"amount"
+			"amount",
+			"applicationId",
+			"orderId"
 		]
 	},
 	"sbiToSbi": {
@@ -37,7 +41,36 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
-			"amount"
+			"amount",
+			"applicationId",
+			"orderId"
+		]
+	},
+	"de_duplication_nsp":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr"
+		],
+		"applicationTableDataFields": [
+			"amount",
+			"applicationId",
+			"orderId"
+		]
+	},
+	"de_duplication_alimco":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"udid",
+			"aadhaar"
+		],
+		"applicationTableDataFields": [
+			"amount",
+			"applicationId",
+			"orderId"
 		]
 	}
 }
