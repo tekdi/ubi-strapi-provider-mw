@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
-
+import reportsConfig from '../common/reportsConfig.json';
 export interface BenefitDetail {
   id: string;
   documentId: string;
@@ -66,23 +66,26 @@ export class ApplicationsService {
     // Process base64 fields
     const applicationFiles: ApplicationFiles[] = [];
     for (const { key, value } of base64Fields) {
-      // Remove the 'base64,' prefix from the value to get the actual base64 content
-      const base64Content = value.replace(/^base64,/, '');
-
-      // Generate a unique filename using applicationId, key, timestamp, and a random number
+      // A - Process base64 fields for uploads
+      // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
       let filename = `${applicationId}_${key}_${Date.now()}_${Math.floor(Math.random() * 10000)}.json`;
 
-      // Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
+      // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
         .replace(/[^a-zA-Z0-9-_.]/g, '') // keep alphanumeric, dash, underscore, dot
         .replace(/\s+/g, '') // remove spaces
         .toLowerCase();
-
       const filePath = path.join(uploadsDir, filename);
-      const decodedContent = Buffer.from(base64Content, 'base64');
-      fs.writeFileSync(filePath, decodedContent);
 
-      // Save ApplicationFiles record
+      // A2.1 - Remove base64, from start of the content
+      const base64Content = value.replace(/^base64,/, '');
+      // A2.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
+      const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
+      // A2.3 - URL-decode to get the original content
+      const decodedContent = decodeURIComponent(urlEncoded);
+      fs.writeFileSync(filePath, decodedContent, 'utf-8');
+
+      // B - Save ApplicationFiles record
       const appFile = await this.prisma.applicationFiles.create({
         data: {
           storage: 'local',
@@ -236,5 +239,88 @@ export class ApplicationsService {
       remark
     })
 
+  }
+
+  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+    if (!benefitId || !reportType) {
+      throw new BadRequestException('benefitId and type are required');
+    }
+
+    const reports = reportsConfig;
+
+    // Get report config
+    const reportConfig = reports[reportType];
+    if (!reportConfig) {
+      throw new BadRequestException('Invalid report type');
+    }
+    const autoGenerateFields = reportConfig.autoGenerateFields || [];
+    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields || [];
+    const applicationTableDataFields = reportConfig.applicationTableDataFields || [];
+
+    let applications: any[] = [];
+    try {
+      applications = await this.prisma.applications.findMany({
+        where: { benefitId: benefitId },
+      });
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
+    }
+
+    const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
+      // Helper function to generate CSV rows
+      const csvRows = [headerFields.join(',')];
+
+      for (const [i, app] of applications.entries()) {
+        const row: (string | number)[] = [];
+
+        // Auto-generate fields
+        for (const field of autoGenerateFields) {
+          if (field === 'serialNumber') {
+            row.push((i + 1).toString());
+          } else {
+            row.push('');
+          }
+        }
+
+        // Application data fields
+        for (const field of appDataFields) {
+          row.push(app.applicationData && app.applicationData[field] !== undefined
+            ? app.applicationData[field]
+            : '');
+        }
+
+        // Application table data fields
+        for (const field of applicationTableDataFields) {
+          if (field === 'amount') {
+            row.push(app.finalAmount !== undefined ? app.finalAmount : '');
+          } else {
+            row.push(app[field] !== undefined ? app[field] : '');
+          }
+        }
+
+        csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+      }
+
+      return csvRows.join('\n');
+    };
+
+    let dynamicAppDataFields: string[] = [];
+
+    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
+      // Fetch applications first to get all keys
+      const fieldSet = new Set<string>();
+      for (const app of applications) {
+        if (app.applicationData && typeof app.applicationData === 'object') {
+          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
+        }
+      }
+      dynamicAppDataFields = Array.from(fieldSet);
+
+      const headerFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
+      return generateCsvRows(applications, headerFields, dynamicAppDataFields);
+    }
+
+    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
+    return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
 }

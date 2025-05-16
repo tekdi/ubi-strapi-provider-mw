@@ -1,0 +1,43 @@
+{
+	"allApplicationDataFields": {
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"*"
+		],
+		"applicationTableDataFields": [
+			"amount"
+		]
+	},
+	"sbiToOtherBanks": {
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"bankAccountNumber",
+			"bankName",
+			"bankAddress",
+			"branchCode",
+			"bankIfscCode"
+		],
+		"applicationTableDataFields": [
+			"amount"
+		]
+	},
+	"sbiToSbi": {
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"bankAccountNumber",
+			"bankName",
+			"bankAddress",
+			"branchCode",
+			"bankIfscCode"
+		],
+		"applicationTableDataFields": [
+			"amount"
+		]
+	}
+}
