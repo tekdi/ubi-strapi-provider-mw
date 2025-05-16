@@ -42,7 +42,7 @@ export class ApplicationsService {
     }
     const benefitId = data.benefitId;
     const customerId = uuidv4();
-    const bapId = data.bapId || data.bapid || data.bapID || null;
+    const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
     const status = 'pending';
 
     // Save application (normal fields as applicationData)
@@ -74,7 +74,7 @@ export class ApplicationsService {
 
       // Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
-        .replace(/[^a-zA-Z0-9-_\.]/g, '') // keep alphanumeric, dash, underscore, dot
+        .replace(/[^a-zA-Z0-9-_.]/g, '') // keep alphanumeric, dash, underscore, dot
         .replace(/\s+/g, '') // remove spaces
         .toLowerCase();
 
@@ -113,17 +113,17 @@ export class ApplicationsService {
     let benefit: BenefitDetail | null = null;
     try {
       const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-       benefit = {
+      benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
         title: benefitDetail?.data?.data?.title,
       }
-     
+
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
-    }     
+    }
 
-    return {applications, benefit};
+    return { applications, benefit };
   }
 
   // Get a single application by ID
@@ -142,17 +142,13 @@ export class ApplicationsService {
     if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
       application.applicationFiles = application.applicationFiles.map(file => {
         if (file.filePath) {
-          try {
-            const absPath = path.isAbsolute(file.filePath)
-              ? file.filePath
-              : path.join(process.cwd(), file.filePath);
-            if (fs.existsSync(absPath)) {
-              const fileBuffer = fs.readFileSync(absPath);
-              const base64Content = fileBuffer.toString('base64');
-              return { ...file, fileContent: base64Content };
-            }
-          } catch (err) {
-            // Optionally log error
+          const absPath = path.isAbsolute(file.filePath)
+            ? file.filePath
+            : path.join(process.cwd(), file.filePath);
+          if (fs.existsSync(absPath)) {
+            const fileBuffer = fs.readFileSync(absPath);
+            const base64Content = fileBuffer.toString('base64');
+            return { ...file, fileContent: base64Content };
           }
         }
         return { ...file, fileContent: null };
