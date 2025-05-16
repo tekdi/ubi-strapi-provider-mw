@@ -17,13 +17,13 @@ declare module 'express-serve-static-core' {
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers['authorization'];
 
     // Check if auth header is present if not then skip the middleware
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       next();
       return;
     }

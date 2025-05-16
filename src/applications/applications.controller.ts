@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException,Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth, ApiQuery } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { Request } from 'express';
@@ -104,16 +104,16 @@ export class ApplicationsController {
       throw new BadRequestException('benefitId and type are required');
     }
 
-       try {
-           const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
-           
-           res.setHeader('Content-Type', 'text/csv');
-           res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
-           res.send(csv);
-         } catch (error) {
-           throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
-         }
+    try {
+      const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
+      res.send(csv);
+    } catch (error) {
+      throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+    }
   }
 }
-  
+
 

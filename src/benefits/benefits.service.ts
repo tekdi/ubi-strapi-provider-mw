@@ -38,13 +38,13 @@ export class BenefitsService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => ApplicationsService))
     private readonly applicationsService: ApplicationsService,
-    private prisma: PrismaService,
+    private readonly prisma: PrismaService,
   ) {
-    this.strapiUrl = this.configService.get('STRAPI_URL') || '';
-    this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
-    this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
-    this.bppId = this.configService.get('BPP_ID') || '';
-    this.bppUri = this.configService.get('BPP_URI') || '';
+    this.strapiUrl = this.configService.get('STRAPI_URL') ?? '';
+    this.strapiToken = this.configService.get('STRAPI_TOKEN') ?? '';
+    this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') ?? '';
+    this.bppId = this.configService.get('BPP_ID') ?? '';
+    this.bppUri = this.configService.get('BPP_URI') ?? '';
   }
 
   onModuleInit() {
@@ -62,11 +62,11 @@ export class BenefitsService {
   }
 
   async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
-    const page = body?.page || '1';
-    const pageSize = body?.pageSize || '100';
-    const sort = body?.sort || 'createdAt:desc';
-    const locale = body?.locale || 'en';
-    const filters = body?.filters || {};
+    const page = body?.page ?? '1';
+    const pageSize = body?.pageSize ?? '100';
+    const sort = body?.sort ?? 'createdAt:desc';
+    const locale = body?.locale ?? 'en';
+    const filters = body?.filters ?? {};
 
     const queryParams = {
       page,
@@ -87,7 +87,7 @@ export class BenefitsService {
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: req.headers['authorization'] || req.headers['Authorization'],
+      Authorization: req.headers['authorization'] ?? req.headers['Authorization'],
     };
 
     const response = await this.httpService.axiosRef.get(url, {
@@ -117,9 +117,7 @@ export class BenefitsService {
             }
           }
 
-          if (!benefitApplications) {
-            benefitApplications = [];
-          }
+          benefitApplications ??= [];
 
           // Enrich the benefit data with application details like application count, successful and failed applications count
           return {
@@ -287,12 +285,12 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;  
+      const orderId: string = benefit?.orderId ?? `TLEXP_${this.generateRandomString()}_${Date.now()}`;
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
 
-      const { id, descriptor, categories, locations, items, rateable }: any =
+      const { id, descriptor, locations, items, rateable }: any =
         mappedResponse?.message.catalog.providers[0];
 
       confirmData["message"] = {
@@ -300,7 +298,7 @@ export class BenefitsService {
           ...confirmDto.message.order,
           provider: { id, descriptor, rateable, locations, },
           items,
-          id: orderDetails.orderId || "",
+          id: orderDetails.orderId ?? "",
         }
       };
 
@@ -341,16 +339,23 @@ export class BenefitsService {
 
     // Extract status from application data and add it to benefit data
     const status = application.status.toUpperCase();
-    const statusCode = status === 'APPROVED' ? {
+    let statusCode;
+    if (status === 'APPROVED') {
+      statusCode = {
       "code": "APPLICATION-APPROVED",
       "name": "Application Approved"
-    } : status === 'REJECTED' ? {
+      };
+    } else if (status === 'REJECTED') {
+      statusCode = {
       "code": "APPLICATION-REJECTED",
       "name": "Application Rejected"
-    } : {
+      };
+    } else {
+      statusCode = {
       "code": "APPLICATION-" + status, // from db 
       "name": "Application " + titleCase(application.status)
-    };
+      };
+    }
 
 
     // Prepare the status object
@@ -438,7 +443,7 @@ export class BenefitsService {
       );
     }
 
-    const { id, descriptor, categories, locations, items, rateable }: any =
+    const { id, descriptor, items, rateable }: any =
       mappedResponse?.message.catalog.providers[0];
 
     // Construct the final response
@@ -481,7 +486,6 @@ export class BenefitsService {
     const items = await Promise.all(
       apiResponseArray.map(async (benefit) => {
         const {
-          id,
           title,
           longDescription,
           applicationOpenDate,
@@ -568,7 +572,7 @@ export class BenefitsService {
               id: 'PROVIDER_UNIFIED',
               descriptor: {
                 name:
-                  firstScholarship?.providingEntity?.name || 'Unknown Provider',
+                  firstScholarship?.providingEntity?.name ?? 'Unknown Provider',
                 short_desc: 'Multiple scholarships offered',
                 images: firstScholarship?.imageUrl
                   ? [{ url: firstScholarship.imageUrl }]
@@ -614,7 +618,7 @@ export class BenefitsService {
   async calculateTotalBenefitValue(benefits) {
     let total = 0;
     benefits.forEach((benefit) => {
-      const matches = benefit.description.match(/\₹([\d,]+)/g);
+      const matches = benefit.description.match(/₹([\d,]+)/g);
       if (matches) {
         matches.forEach((amount) => {
           total += parseInt(amount.replace(/[₹,]/g, ''), 10);

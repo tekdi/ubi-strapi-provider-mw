@@ -2,8 +2,7 @@ import {
     ExceptionFilter,
     Catch,
     ArgumentsHost,
-    HttpException,
-    HttpStatus,
+    HttpException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -23,37 +22,35 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         // Default status code
         let status = 500;
-        let errorMessage = 'INTERNAL_SERVER_ERROR';
+        let errorMessage : string;
 
         // Handle HttpException
         if (exception instanceof HttpException) {
             status = exception.getStatus();
-            errorMessage = (exception.getResponse() as any)?.message || exception.message;
+            errorMessage = (exception.getResponse() as any)?.message ?? exception.message;
         }
 
         // Handle AxiosError
         else if (exception instanceof AxiosError) {
-            status = exception.response?.status || 500;
-            errorMessage = exception.response?.data || exception.message || 'AXIOS_ERROR';
+            status = exception.response?.status ?? 500;
+            errorMessage = exception.response?.data ?? exception.message ?? 'AXIOS_ERROR';
         }
         // Handle PrismaClientKnownRequestError
         else if (exception instanceof Prisma.PrismaClientValidationError) {
             status = 400;
-            errorMessage = exception.message || 'PRISMA_CLIENT_ERROR';
+            errorMessage = exception.message ?? 'PRISMA_CLIENT_ERROR';
         }
         // Handle PrismaClientUnknownRequestError
         else if (exception instanceof Prisma.PrismaClientUnknownRequestError) {
-            status = 500;
-            errorMessage = exception.message || 'PRISMA_CLIENT_UNKNOWN_ERROR';
+            errorMessage = exception.message ?? 'PRISMA_CLIENT_UNKNOWN_ERROR';
         }
         // Handle PrismaClientInitializationError       
         else if (exception instanceof Prisma.PrismaClientInitializationError) {
-            status = 500;
-            errorMessage = exception.message || 'PRISMA_CLIENT_INITIALIZATION_ERROR';
+            errorMessage = exception.message ?? 'PRISMA_CLIENT_INITIALIZATION_ERROR';
         }
         // Handle other exceptions
         else {
-            errorMessage = exception?.message || 'INTERNAL_SERVER_ERROR';
+            errorMessage = exception?.message ?? 'INTERNAL_SERVER_ERROR';
         }
 
         // Log the error
@@ -72,7 +69,5 @@ export class AllExceptionsFilter implements ExceptionFilter {
             path: request.url,
             timestamp: new Date().toISOString(),
         });
-
-
     }
 }
