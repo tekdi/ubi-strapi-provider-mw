@@ -15,6 +15,11 @@ export interface BenefitDetail {
   title: string;
 }
 
+type ApplicationData = Record<string, any>;
+type BenefitDefinition = {
+  calculationRules: any[];
+};
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -84,7 +89,7 @@ export class ApplicationsService {
       // A2.3 - URL-decode to get the original content
       const decodedContent = decodeURIComponent(urlEncoded);
       fs.writeFileSync(filePath, decodedContent, 'utf-8');
-      
+
       // B - Save ApplicationFiles record
       const appFile = await this.prisma.applicationFiles.create({
         data: {
@@ -116,17 +121,17 @@ export class ApplicationsService {
     let benefit: BenefitDetail | null = null;
     try {
       const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-       benefit = {
+      benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
         title: benefitDetail?.data?.data?.title,
       }
-     
+
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
-    }     
+    }
 
-    return {applications, benefit};
+    return { applications, benefit };
   }
 
   // Get a single application by ID
@@ -245,7 +250,6 @@ export class ApplicationsService {
 
   }
 
-  
   async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
@@ -274,10 +278,8 @@ export class ApplicationsService {
     const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
       // Helper function to generate CSV rows
       const csvRows = [headerFields.join(',')];
-      
       for (const [i, app] of applications.entries()) {
         const row: (string | number)[] = [];
-        
         // Auto-generate fields
         for (const field of autoGenerateFields) {
           if (field === 'serialNumber') {
@@ -286,31 +288,38 @@ export class ApplicationsService {
             row.push('');
           }
         }
-        
+
         // Application data fields
         for (const field of appDataFields) {
-          row.push(app.applicationData && app.applicationData[field] !== undefined 
-            ? app.applicationData[field] 
-            : '');
+          if (field === 'otr') {
+            row.push(app.applicationData['nspOtr'] !== undefined ? app.applicationData['nspOtr'] : '');
+          } else if (field === 'aadhaar') {
+            const aadhaar = app.applicationData['aadhaar'];
+            row.push(aadhaar ? aadhaar.slice(-4) : '');
+          } else {
+            row.push(app.applicationData[field]!== undefined ? app.applicationData[field] : '');
+          }
         }
-        
+
         // Application table data fields
         for (const field of applicationTableDataFields) {
           if (field === 'amount') {
-            row.push(app.finalAmount !== undefined ? app.finalAmount : '');
-          } else {
+            row.push(app.finalAmount || '');
+          } else if(field === 'applicationId') {
+            row.push(app.id !== undefined ? app.id : '');
+          } else{
             row.push(app[field] !== undefined ? app[field] : '');
           }
         }
-        
+
         csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
       }
-      
+
       return csvRows.join('\n');
     };
 
     let dynamicAppDataFields: string[] = [];
-    
+
     if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
       // Fetch applications first to get all keys
       const fieldSet = new Set<string>();
@@ -329,6 +338,152 @@ export class ApplicationsService {
     return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
 
+  // Get a single application by ID
+  async calculateBenefit(id: number) {
+    const application = await this.prisma.applications.findUnique({
+      where: { id }
+    });
 
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
 
-}
+    let benefitDetails;
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+    } catch (error) {
+      console.error(`Error fetching benefit details for application: $id`, error.message);
+    }
+   
+    
+    let amounts;
+    amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
+
+    return amounts;
+  }
+
+  /**
+  * Main function to calculate benefit payout.
+  */
+  async doBenefitCalculations(applicationData: any, benefitDefinition: any) {
+    const output: Record<string, number> = {};
+    let total = 0;
+
+    for (const rule of benefitDefinition.benefitCalculationRules || []) {
+      let amount = 0;
+
+      switch (rule.type) {
+        case "fixed":
+          amount = rule.fixedValue || 0;
+          break;
+
+        case "lookup":
+          const inputVal = applicationData[rule.inputFields[0]];
+          const found = rule.lookupTable.find((row: any) => row.match === inputVal);
+          amount = found ? found.amount : 0;
+          break;
+
+        case "conditional":
+          for (const condition of rule.conditions) {
+            const matches = condition.ifExpr
+              ? this.evaluateIfExpr(condition.ifExpr, applicationData)
+              : Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
+
+            if (matches) {
+              if (condition.then.amount === "value") {
+                amount = Number(applicationData[rule.inputFields[0]]) || 0;
+              } else {
+                amount = Number(condition.then.amount) || 0;
+              }
+              break;
+            }
+          }
+          break;
+
+        case "formula":
+          amount = this.evaluateFormula(rule.formula, applicationData);
+          break;
+
+        default:
+          console.warn(`Unsupported rule type: ${rule.type}`);
+          break;
+      }
+
+      output[rule.outputField] = amount;
+      total += amount;
+    }
+
+    output.totalPayout = total;
+    return output;
+  }
+
+  /**
+ * Very basic and safe math formula evaluator (supports + - * / and variables).
+ */
+  evaluateFormula(formula: string, context: ApplicationData): number {
+    try {
+      // Replace variable names in the formula with actual values
+      const safeExpr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
+        return typeof context[match] !== "undefined" ? context[match] : "0";
+      });
+
+      // Only allow safe characters
+      if (!/^[\d\s+\-*/().]+$/.test(safeExpr)) throw new Error("Unsafe formula");
+
+      return Function(`"use strict"; return (${safeExpr})`)(); // evaluated safely
+    } catch (err) {
+      console.error("Formula evaluation error:", err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Limited expression evaluator supporting basic comparison logic.
+   */
+  evaluateIfExpr(expr: string, context: ApplicationData): boolean {
+    try {
+      // Basic parser for comparison operators
+      const comparisons = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g);
+
+      if (!comparisons) return false;
+
+      return comparisons.every(part => {
+        const [, key, op, rawVal] = part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
+        let actual = context[key];
+        let expected: any = rawVal;
+
+        if (expected === "true") expected = true;
+        else if (expected === "false") expected = false;
+        else if (!isNaN(Number(expected))) expected = Number(expected);
+        else expected = expected.replace(/^['"]|['"]$/g, "");
+
+        switch (op) {
+          case "===": return actual === expected;
+          case "!==": return actual !== expected;
+          case ">": return actual > expected;
+          case "<": return actual < expected;
+          case ">=": return actual >= expected;
+          case "<=": return actual <= expected;
+          default: return false;
+        }
+      });
+    } catch (err) {
+      console.error("Expression evaluation error:", err.message);
+      return false;
+    }
+  }
+};
+// Example usage (for testing, not needed in NestJS service):
+/*
+import * as benefitDefinition from './updated-pre-matric-1.json';
+
+const result = calculateBenefit({
+  disabilityType: "Blindness",
+  claimedLaptopEarlier: false,
+  claimedAssistiveEarlier: true,
+  tuitionFee: 8000,
+  miscFee: 1500
+}, benefitDefinition);
+
+console.log("Calculated payout:", result);
+*/
