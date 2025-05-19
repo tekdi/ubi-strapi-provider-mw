@@ -92,7 +92,9 @@ export class ApplicationsController {
     });
   }
 
-  @Get('/reports/csvexport')
+   @Get('/reports/csvexport')
+  @ApiBasicAuth('access-token')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Export applications as CSV', description: 'Exports applications for a given benefitId and report type as a CSV file.' })
   @ApiQuery({ name: 'benefitId', type: String, required: true })
   @ApiQuery({ name: 'type', type: String, required: true })
