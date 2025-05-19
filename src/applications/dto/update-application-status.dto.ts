@@ -44,7 +44,7 @@ export class UpdateApplicationActionLogDto {
 
   @ApiProperty({
     description: 'IP address of the user',
-    example: '192.168.1.1',
+    example: '192.168.1.1',  //NOSONAR  
   })
   ip?: string;
 

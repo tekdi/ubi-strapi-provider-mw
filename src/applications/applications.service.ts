@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-
+import { generateRandomString } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,7 +42,7 @@ export class ApplicationsService {
     }
     const benefitId = data.benefitId;
     const customerId = uuidv4();
-    const bapId = data.bapId || data.bapid || data.bapID || null;
+    const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
     const status = 'pending';
 
     // Save application (normal fields as applicationData)
@@ -68,11 +68,12 @@ export class ApplicationsService {
     for (const { key, value } of base64Fields) {
       // A - Process base64 fields for uploads
       // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
-      let filename = `${applicationId}_${key}_${Date.now()}_${Math.floor(Math.random() * 10000)}.json`;
+      const randomBytes = generateRandomString(); // Generate a secure random string
+      let filename = `${applicationId}_${key}_${Date.now()}_${randomBytes}.json`;
 
       // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
-        .replace(/[^a-zA-Z0-9-_\.]/g, '') // keep alphanumeric, dash, underscore, dot
+        .replace(/[^a-zA-Z0-9-_.]/g, '') // keep alphanumeric, dash, underscore, dot
         .replace(/\s+/g, '') // remove spaces
         .toLowerCase();
       const filePath = path.join(uploadsDir, filename);
@@ -84,7 +85,7 @@ export class ApplicationsService {
       // A2.3 - URL-decode to get the original content
       const decodedContent = decodeURIComponent(urlEncoded);
       fs.writeFileSync(filePath, decodedContent, 'utf-8');
-      
+
       // B - Save ApplicationFiles record
       const appFile = await this.prisma.applicationFiles.create({
         data: {
@@ -116,17 +117,17 @@ export class ApplicationsService {
     let benefit: BenefitDetail | null = null;
     try {
       const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-       benefit = {
+      benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
         title: benefitDetail?.data?.data?.title,
       }
-     
+
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
-    }     
+    }
 
-    return {applications, benefit};
+    return { applications, benefit };
   }
 
   // Get a single application by ID
@@ -145,17 +146,13 @@ export class ApplicationsService {
     if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
       application.applicationFiles = application.applicationFiles.map(file => {
         if (file.filePath) {
-          try {
-            const absPath = path.isAbsolute(file.filePath)
-              ? file.filePath
-              : path.join(process.cwd(), file.filePath);
-            if (fs.existsSync(absPath)) {
-              const fileBuffer = fs.readFileSync(absPath);
-              const base64Content = fileBuffer.toString('base64');
-              return { ...file, fileContent: base64Content };
-            }
-          } catch (err) {
-            // Optionally log error
+          const absPath = path.isAbsolute(file.filePath)
+            ? file.filePath
+            : path.join(process.cwd(), file.filePath);
+          if (fs.existsSync(absPath)) {
+            const fileBuffer = fs.readFileSync(absPath);
+            const base64Content = fileBuffer.toString('base64');
+            return { ...file, fileContent: base64Content };
           }
         }
         return { ...file, fileContent: null };
@@ -245,8 +242,8 @@ export class ApplicationsService {
 
   }
 
-  
-    async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+
+  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
     }
@@ -293,7 +290,7 @@ export class ApplicationsService {
             const aadhaar = app.applicationData['aadhaar'];
             row.push(aadhaar ? aadhaar.slice(-4) : '');
           } else {
-            row.push(app.applicationData[field]!== undefined ? app.applicationData[field] : '');
+            row.push(app.applicationData[field] !== undefined ? app.applicationData[field] : '');
           }
         }
 
@@ -301,9 +298,9 @@ export class ApplicationsService {
         for (const field of applicationTableDataFields) {
           if (field === 'amount') {
             row.push(app.finalAmount || '');
-          } else if(field === 'applicationId') {
+          } else if (field === 'applicationId') {
             row.push(app.id !== undefined ? app.id : '');
-          } else{
+          } else {
             row.push(app[field] !== undefined ? app[field] : '');
           }
         }

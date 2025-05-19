@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException,Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth, ApiQuery } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { Request } from 'express';
@@ -13,7 +13,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
 import { Response } from 'express';
-import { UAParser } from 'ua-parser-js';
+import { getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications')
@@ -77,22 +77,19 @@ export class ApplicationsController {
     @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
     @Req() req: Request,
   ) {
-    const parser = new UAParser();
 
-    const userAgent = req.headers['user-agent'] || '';
-    const uaResult = parser.setUA(userAgent).getResult();
-    const os = [uaResult.os.name, uaResult.os.version].filter(Boolean).join(' ');
-    const browser = [uaResult.browser.name, uaResult.browser.version].filter(Boolean).join(' ');
     const updatedBy = req.mw_userid;
     const ip = Array.isArray(req.headers['x-forwarded-for'])
       ? req.headers['x-forwarded-for'][0]
       : req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const { os, browser } = getBrowserInfo(userAgent);
     return this.applicationsService.updateStatus(Number(id), updateStatusDto, {
       os, browser, updatedBy: Number(updatedBy), ip, updatedAt: new Date()
     });
   }
 
-   @Get('/reports/csvexport')
+  @Get('/reports/csvexport')
   @ApiBasicAuth('access-token')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Export applications as CSV', description: 'Exports applications for a given benefitId and report type as a CSV file.' })
@@ -106,16 +103,16 @@ export class ApplicationsController {
       throw new BadRequestException('benefitId and type are required');
     }
 
-       try {
-           const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
-           
-           res.setHeader('Content-Type', 'text/csv');
-           res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
-           res.send(csv);
-         } catch (error) {
-           throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
-         }
+    try {
+      const csv = await this.applicationsService.exportApplicationsCsv(benefitId, type);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}_applications.csv"`);
+      res.send(csv);
+    } catch (error) {
+      throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+    }
   }
 }
-  
+
 
