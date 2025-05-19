@@ -11,7 +11,7 @@ import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { titleCase } from 'src/common/util';
+import { generateRandomString, titleCase } from 'src/common/util';
 import { PrismaService } from '../prisma.service';
 import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
@@ -285,10 +285,14 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.orderId ?? `TLEXP_${this.generateRandomString()}_${Date.now()}`;
+      const orderId: string = benefit?.orderId ?? `TLEXP_${generateRandomString()}_${Date.now()}`;
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
+
+      if(!orderDetails?.orderId) {
+        throw new BadRequestException('Failed to update order details');
+      }
 
       const { id, descriptor, locations, items, rateable }: any =
         mappedResponse?.message.catalog.providers[0] ?? {};
@@ -422,14 +426,14 @@ export class BenefitsService {
       quote: {
         price: {
           currency: 'INR',
-          value: (Math.floor(Math.random() * 20) * 10).toString(),
+          value: '123',
         },
         breakup: [
           {
             title: 'Tuition Fee',
             price: {
               currency: 'INR',
-              value: (Math.floor(Math.random() * 20) * 10).toString(),
+              value: '123',
             },
           }
         ]
@@ -462,10 +466,6 @@ export class BenefitsService {
     };
 
     return statusData;
-  }
-
-  private generateRandomString(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
   // Function to check if the BAP ID and URI are valid

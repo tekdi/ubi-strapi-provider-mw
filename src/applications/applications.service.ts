@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-
+import { generateRandomString } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -68,7 +68,8 @@ export class ApplicationsService {
     for (const { key, value } of base64Fields) {
       // A - Process base64 fields for uploads
       // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
-      let filename = `${applicationId}_${key}_${Date.now()}_${Math.floor(Math.random() * 10000)}.json`;
+      const randomBytes = generateRandomString(); // Generate a secure random string
+      let filename = `${applicationId}_${key}_${Date.now()}_${randomBytes}.json`;
 
       // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
@@ -241,8 +242,8 @@ export class ApplicationsService {
 
   }
 
-  
-    async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+
+  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
     }
@@ -289,7 +290,7 @@ export class ApplicationsService {
             const aadhaar = app.applicationData['aadhaar'];
             row.push(aadhaar ? aadhaar.slice(-4) : '');
           } else {
-            row.push(app.applicationData[field]!== undefined ? app.applicationData[field] : '');
+            row.push(app.applicationData[field] !== undefined ? app.applicationData[field] : '');
           }
         }
 
@@ -297,9 +298,9 @@ export class ApplicationsService {
         for (const field of applicationTableDataFields) {
           if (field === 'amount') {
             row.push(app.finalAmount || '');
-          } else if(field === 'applicationId') {
+          } else if (field === 'applicationId') {
             row.push(app.id !== undefined ? app.id : '');
-          } else{
+          } else {
             row.push(app[field] !== undefined ? app[field] : '');
           }
         }
