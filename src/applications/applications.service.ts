@@ -15,6 +15,11 @@ export interface BenefitDetail {
   title: string;
 }
 
+type ApplicationData = Record<string, any>;
+type BenefitDefinition = {
+  calculationRules: any[];
+};
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -330,5 +335,150 @@ export class ApplicationsService {
     return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
 
+  // Get a single application by ID
+  async calculateBenefit(id: number) {
+    const application = await this.prisma.applications.findUnique({
+      where: { id }
+    });
 
-}
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
+
+    let benefitDetails;
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+    } catch (error) {
+      console.error(`Error fetching benefit details for application: ${id}`, error.message);
+    }
+   
+    
+    let amounts;
+    amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
+    try{
+        await this.update(id, {
+          calculatedAmount: amounts,
+          finalAmount: `${amounts?.totalPayout}`,
+          calculationsProcessedAt: new Date()
+        })
+    }catch(err){
+      console.error(`Error updating benefit details for application: ${id}`, err.message);
+    }
+    return amounts;
+  }
+
+  /**
+  * Main function to calculate benefit payout.
+  */
+  async doBenefitCalculations(applicationData: any, benefitDefinition: any) {
+    const output: Record<string, number> = {};
+    let total = 0;
+
+    for (const rule of benefitDefinition.benefitCalculationRules || []) {
+      let amount = 0;
+
+      switch (rule.type) {
+        case "fixed":
+          amount = rule.fixedValue || 0;
+          break;
+
+        case "lookup": {
+          const inputVal = applicationData[rule.inputFields[0]];
+          const found = rule.lookupTable.find((row: any) => row.match === inputVal);
+          amount = found ? found.amount : 0;
+          break;
+        }
+
+        case "conditional": {
+          for (const condition of rule.conditions) {
+            const matches = condition.ifExpr
+              ? this.evaluateIfExpr(condition.ifExpr, applicationData)
+              : Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
+
+            if (matches) {
+              if (condition.then.amount === "value") {
+                amount = Number(applicationData[rule.inputFields[0]]) || 0;
+              } else {
+                amount = Number(condition.then.amount) || 0;
+              }
+              break;
+            }
+          }
+          break;
+        }
+
+
+        case "formula":
+          amount = this.evaluateFormula(rule.formula, applicationData);
+          break;
+
+        default:
+          console.warn(`Unsupported rule type: ${rule.type}`);
+          break;
+      }
+
+      output[rule.outputField] = amount;
+      total += amount;
+    }
+
+    output.totalPayout = total;
+    return output;
+  }
+
+  /**
+ * Very basic and safe math formula evaluator (supports + - * / and variables).
+ */
+  evaluateFormula(formula: string, context: ApplicationData): number {
+    try {
+      // Replace variable names in the formula with actual values
+      const safeExpr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
+        return typeof context[match] !== "undefined" ? context[match] : "0";
+      });
+
+      // Only allow safe characters
+      if (!/^[\d\s+\-*/().]+$/.test(safeExpr)) throw new Error("Unsafe formula");
+
+      return Function(`"use strict"; return (${safeExpr})`)(); // evaluated safely
+    } catch (err) {
+      console.error("Formula evaluation error:", err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Limited expression evaluator supporting basic comparison logic.
+   */
+  evaluateIfExpr(expr: string, context: ApplicationData): boolean {
+    try {
+      // Basic parser for comparison operators
+      const comparisons = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g);
+
+      if (!comparisons) return false;
+
+      return comparisons.every(part => {
+        const [, key, op, rawVal] = part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
+        let actual = context[key];
+        let expected: any = rawVal;
+
+        if (expected === "true") expected = true;
+        else if (expected === "false") expected = false;
+        else if (!isNaN(Number(expected))) expected = Number(expected);
+        else expected = expected.replace(/^['"]|['"]$/g, "");
+
+        switch (op) {
+          case "===": return actual === expected;
+          case "!==": return actual !== expected;
+          case ">": return actual > expected;
+          case "<": return actual < expected;
+          case ">=": return actual >= expected;
+          case "<=": return actual <= expected;
+          default: return false;
+        }
+      });
+    } catch (err) {
+      console.error("Expression evaluation error:", err.message);
+      return false;
+    }
+  }
+};
+
