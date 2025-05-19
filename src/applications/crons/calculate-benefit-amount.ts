@@ -14,7 +14,7 @@ export class ApplicationStatusUpdate {
         private readonly schedulerRegistry: SchedulerRegistry,
     ) { }
     onModuleInit() {
-        const cronExpression = this.configService.get('BENEFITS_CALCULATION_CRON_RUN_TIME') || '0 0 * * * *';; // fallback to every second
+        const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') || '0 */30 * * * *';
         const job = new CronJob(cronExpression, () => this.updateApplicationStatusCron());
 
         this.schedulerRegistry.addCronJob('application-status-update', job);
@@ -23,6 +23,7 @@ export class ApplicationStatusUpdate {
     private async updateApplicationStatusCron() {
         try {
             const applications = await this.getApplications();
+            console.log(applications,'-----------')
             await this.processApplications(applications);
         } catch (error) {
             Logger.error(`Error in 'benefit calculation cron': ${error.message}`, error.stack);
@@ -32,7 +33,7 @@ export class ApplicationStatusUpdate {
     async getApplications() {
         let dt = new Date();
         let BENEFITS_CALCULATION_LAST_PROCESS_HOURS = Number(
-            this.configService.get('BENEFITS_CALCULATION_LAST_PROCESS_HOURS'),
+            this.configService.get('BENEFIT_CALCULATIONS_LAST_PROCESS_HOURS'),
         );
         let filterTimestamp = new Date(
             dt.setHours(dt.getHours() - BENEFITS_CALCULATION_LAST_PROCESS_HOURS),
@@ -43,14 +44,14 @@ export class ApplicationStatusUpdate {
             SELECT id
             FROM "Applications"
             WHERE "calculatedAmount" IS NULL
-                AND ("processedAt" IS NULL OR "processedAt" <= ${filterTimestamp}::timestamp)
-            LIMIT ${this.configService.get('BENEFITS_BATCH_NUM')}::bigint OFFSET 0
+                AND ("calculationsProcessedAt" IS NULL OR "calculationsProcessedAt" <= ${filterTimestamp}::timestamp)
+            LIMIT ${this.configService.get('BENEFIT_CALCULATIONS_BATCH_SIZE') || 10}::bigint OFFSET 0
             `;
     }
-
     private async processApplications(applications: any[]) {
         for (const app of applications) {
             try {
+                console.log(app,'========')
                 const response = await this.applicationsService.calculateBenefit(Number(app.id))
             } catch (err) {
                 Logger.warn(`Failed to update application ${app.id}: ${err.message}`);

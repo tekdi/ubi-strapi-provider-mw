@@ -27,7 +27,7 @@ model Applications {
   remark           String?
   updatedBy        Int?
   actionLog        Json?
-  processedAt      DateTime?
+  calculationsProcessedAt      DateTime?
   applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt        DateTime           @default(now()) // Automatically set on creation
   updatedAt        DateTime           @updatedAt // Automatically updated on modification

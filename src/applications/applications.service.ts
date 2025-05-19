@@ -352,7 +352,7 @@ export class ApplicationsService {
     try {
       benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
     } catch (error) {
-      console.error(`Error fetching benefit details for application: $id`, error.message);
+      console.error(`Error fetching benefit details for application: ${id}`, error.message);
     }
    
     
@@ -362,10 +362,10 @@ export class ApplicationsService {
         await this.update(id, {
           calculatedAmount: amounts,
           finalAmount: `${amounts?.totalPayout}`,
-          processedAt: new Date()
+          calculationsProcessedAt: new Date()
         })
     }catch(err){
-      console.error(`Error fetching benefit details for application: $id`, err.message);
+      console.error(`Error updating benefit details for application: ${id}`, err.message);
     }
     return amounts;
   }
@@ -385,13 +385,14 @@ export class ApplicationsService {
           amount = rule.fixedValue || 0;
           break;
 
-        case "lookup":
+        case "lookup": {
           const inputVal = applicationData[rule.inputFields[0]];
           const found = rule.lookupTable.find((row: any) => row.match === inputVal);
           amount = found ? found.amount : 0;
           break;
+        }
 
-        case "conditional":
+        case "conditional": {
           for (const condition of rule.conditions) {
             const matches = condition.ifExpr
               ? this.evaluateIfExpr(condition.ifExpr, applicationData)
@@ -407,6 +408,8 @@ export class ApplicationsService {
             }
           }
           break;
+        }
+
 
         case "formula":
           amount = this.evaluateFormula(rule.formula, applicationData);
