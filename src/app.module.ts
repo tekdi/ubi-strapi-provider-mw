@@ -8,6 +8,7 @@ import { ApplicationFilesModule } from './applicationFiles/applicationFiles.modu
 import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma.service';
+import { VerificationsModule } from './verifications/verifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PrismaService } from './prisma.service';
     ApplicationFilesModule,
     ApplicationsModule,
     AuthModule,
+    VerificationsModule
   ],
   controllers: [AppController],
   providers: [
