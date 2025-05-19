@@ -250,7 +250,8 @@ export class ApplicationsService {
 
   }
 
-  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+  
+    async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
     }
@@ -319,7 +320,6 @@ export class ApplicationsService {
     };
 
     let dynamicAppDataFields: string[] = [];
-
     if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
       // Fetch applications first to get all keys
       const fieldSet = new Set<string>();
