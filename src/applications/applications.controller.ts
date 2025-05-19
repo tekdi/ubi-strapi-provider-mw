@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Patch, Query, UseFilters, UsePipes, ValidationPipe, UseGuards, Req, BadRequestException, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBasicAuth, ApiQuery } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationsDto } from './dto/create-applications.dto';
 import { UpdateApplicationsDto } from './dto/update-applications.dto';
@@ -12,7 +12,6 @@ import { ApplicationStatusValidationPipe } from './pipes/application-status-vali
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
-import { Response } from 'express';
 import { getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
@@ -81,8 +80,8 @@ export class ApplicationsController {
     const updatedBy = req.mw_userid;
     const ip = Array.isArray(req.headers['x-forwarded-for'])
       ? req.headers['x-forwarded-for'][0]
-      : req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-    const userAgent = req.headers['user-agent'] || '';
+      : req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '';
+    const userAgent = req.headers['user-agent'] ?? '';
     const { os, browser } = getBrowserInfo(userAgent);
     return this.applicationsService.updateStatus(Number(id), updateStatusDto, {
       os, browser, updatedBy: Number(updatedBy), ip, updatedAt: new Date()

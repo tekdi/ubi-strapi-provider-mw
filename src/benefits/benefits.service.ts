@@ -244,7 +244,7 @@ export class BenefitsService {
       };
 
       const { id, descriptor, categories, locations, items, rateable }: any =
-        mappedResponse?.message.catalog.providers[0];
+        mappedResponse?.message.catalog.providers?.[0] ?? {};
 
       items[0].xinput = xinput;
 
