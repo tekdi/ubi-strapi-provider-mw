@@ -14,7 +14,7 @@ export class ApplicationStatusUpdate {
         private readonly schedulerRegistry: SchedulerRegistry,
     ) { }
     onModuleInit() {
-        const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') || '0 */30 * * * *';
+        const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') || '*/30 * * * *';
         const job = new CronJob(cronExpression, () => this.updateApplicationStatusCron());
 
         this.schedulerRegistry.addCronJob('application-status-update', job);
