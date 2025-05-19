@@ -9,13 +9,12 @@ export class AuthService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.strapiUrl = this.configService.get<string>('STRAPI_URL') || '';
+    this.strapiUrl = this.configService.get<string>('STRAPI_URL') ?? '';
   }
 
   async login(req: { email: string; password: string }): Promise<any> {
     const loginEndpoint = `${this.strapiUrl}/admin/login`;
 
-    try {
       const response = await this.httpService.axiosRef.post(
         loginEndpoint,
         {
@@ -30,8 +29,5 @@ export class AuthService {
       );
 
       return response.data;
-    } catch (error) {
-      throw new Error('Something went wrong while logging in');
-    }
   }
 }
