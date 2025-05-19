@@ -9,7 +9,7 @@ export const AuthApiDocs = {
       schema: {
         example: {
           email: 'john.doe@example.com',
-          password: 'securepassword123'
+          password: 'securepassword123'  //NOSONAR 
         }
       }
     },
