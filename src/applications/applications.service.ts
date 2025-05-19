@@ -481,17 +481,4 @@ export class ApplicationsService {
     }
   }
 };
-// Example usage (for testing, not needed in NestJS service):
-/*
-import * as benefitDefinition from './updated-pre-matric-1.json';
 
-const result = calculateBenefit({
-  disabilityType: "Blindness",
-  claimedLaptopEarlier: false,
-  claimedAssistiveEarlier: true,
-  tuitionFee: 8000,
-  miscFee: 1500
-}, benefitDefinition);
-
-console.log("Calculated payout:", result);
-*/

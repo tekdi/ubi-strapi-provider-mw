@@ -33,7 +33,7 @@ export class ApplicationStatusUpdate {
     async getApplications() {
         let dt = new Date();
         let BENEFITS_CALCULATION_LAST_PROCESS_HOURS = Number(
-            this.configService.get('BENEFIT_CALCULATIONS_LAST_PROCESS_HOURS'),
+            this.configService.get('BENEFIT_CALCULATIONS_LAST_PROCESS_HOURS') || 24,
         );
         let filterTimestamp = new Date(
             dt.setHours(dt.getHours() - BENEFITS_CALCULATION_LAST_PROCESS_HOURS),
