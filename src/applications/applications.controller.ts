@@ -13,7 +13,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
 import { Response } from 'express';
-import { UAParser } from 'ua-parser-js';
+import { getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications')
@@ -77,16 +77,13 @@ export class ApplicationsController {
     @Body(new ApplicationStatusValidationPipe()) updateStatusDto: UpdateApplicationStatusDto,
     @Req() req: Request,
   ) {
-    const parser = new UAParser();
 
-    const userAgent = req.headers['user-agent'] || '';
-    const uaResult = parser.setUA(userAgent).getResult();
-    const os = [uaResult.os.name, uaResult.os.version].filter(Boolean).join(' ');
-    const browser = [uaResult.browser.name, uaResult.browser.version].filter(Boolean).join(' ');
     const updatedBy = req.mw_userid;
     const ip = Array.isArray(req.headers['x-forwarded-for'])
       ? req.headers['x-forwarded-for'][0]
       : req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const { os, browser } = getBrowserInfo(userAgent);
     return this.applicationsService.updateStatus(Number(id), updateStatusDto, {
       os, browser, updatedBy: Number(updatedBy), ip, updatedAt: new Date()
     });
