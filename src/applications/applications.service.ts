@@ -358,7 +358,15 @@ export class ApplicationsService {
     
     let amounts;
     amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
-
+    try{
+        await this.update(id, {
+          calculatedAmount: amounts,
+          finalAmount: `${amounts?.totalPayout}`,
+          processedAt: new Date()
+        })
+    }catch(err){
+      console.error(`Error fetching benefit details for application: $id`, err.message);
+    }
     return amounts;
   }
 

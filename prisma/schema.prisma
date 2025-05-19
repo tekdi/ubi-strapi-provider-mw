@@ -21,12 +21,13 @@ model Applications {
   applicationData  Json // form fields saved as they are dynamic
   customerId       String?
   bapId            String?
-  calculatedAmount String?
+  calculatedAmount Json?
   finalAmount      String?
   orderId          String?
   remark           String?
   updatedBy        Int?
   actionLog        Json?
+  processedAt      DateTime?
   applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt        DateTime           @default(now()) // Automatically set on creation
   updatedAt        DateTime           @updatedAt // Automatically updated on modification
