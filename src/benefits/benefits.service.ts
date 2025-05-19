@@ -291,7 +291,7 @@ export class BenefitsService {
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
 
       const { id, descriptor, locations, items, rateable }: any =
-        mappedResponse?.message.catalog.providers[0];
+        mappedResponse?.message.catalog.providers[0] ?? {};
 
       confirmData["message"] = {
         "order": {
@@ -444,7 +444,7 @@ export class BenefitsService {
     }
 
     const { id, descriptor, items, rateable }: any =
-      mappedResponse?.message.catalog.providers[0];
+      mappedResponse?.message.catalog.providers?.[0] ?? { id: null, descriptor: null, items: [], rateable: false };
 
     // Construct the final response
     statusData["message"] = {
