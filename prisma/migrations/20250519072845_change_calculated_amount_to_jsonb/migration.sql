@@ -5,6 +5,6 @@
 
 */
 -- AlterTable
-ALTER TABLE "Applications" ADD COLUMN     "processedAt" TIMESTAMP(3),
+ALTER TABLE "Applications" ADD COLUMN     "calculationsProcessedAt" TIMESTAMP(3),
 DROP COLUMN "calculatedAmount",
 ADD COLUMN     "calculatedAmount" JSONB;
