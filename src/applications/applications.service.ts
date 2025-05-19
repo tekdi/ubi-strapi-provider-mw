@@ -260,9 +260,9 @@ export class ApplicationsService {
     if (!reportConfig) {
       throw new BadRequestException('Invalid report type');
     }
-    const autoGenerateFields = reportConfig.autoGenerateFields || [];
-    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields || [];
-    const applicationTableDataFields = reportConfig.applicationTableDataFields || [];
+    const autoGenerateFields = reportConfig.autoGenerateFields ?? [];
+    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields ?? [];
+    const applicationTableDataFields = reportConfig.applicationTableDataFields ?? [];
 
     let applications: any[] = [];
     try {
@@ -302,7 +302,7 @@ export class ApplicationsService {
         // Application table data fields
         for (const field of applicationTableDataFields) {
           if (field === 'amount') {
-            row.push(app.finalAmount || '');
+            row.push(app.finalAmount ?? '');
           } else if (field === 'applicationId') {
             row.push(app.id !== undefined ? app.id : '');
           } else {

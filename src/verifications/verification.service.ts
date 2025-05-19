@@ -10,7 +10,7 @@ export class VerificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly httpService: HttpService
-  ) {}
+  ) { }
 
   async verifyApplicationVcs(applicationId: string): Promise<{
     isSuccess: boolean;
@@ -88,10 +88,9 @@ export class VerificationService {
 
           const isValid = response?.data?.success ?? false;
           const message = isValid
-            ? response.data.message || 'Credential verified successfully.'
-            : `${response.data.message || 'Verification failed.'} Errors: ${
-                (response.data.errors?.map((err: any) => err.error) || ['Unknown error']).join(', ')
-              }`;
+            ? response.data.message ?? 'Credential verified successfully.'
+            : `${response.data.message ?? 'Verification failed.'} Errors: ${(response.data.errors?.map((err: any) => err.error) ?? ['Unknown error']).join(', ')
+            }`;
 
           verificationResults.push({
             id: file.id,
@@ -106,7 +105,7 @@ export class VerificationService {
               verificationStatus: {
                 status: isValid ? 'Verified' : 'Unverified',
                 ...(isValid ? {} : {
-                  verificationErrors: response.data.errors?.map((err: any) => err.error) || ['Unknown error'],
+                  verificationErrors: response.data.errors?.map((err: any) => err.error) ?? ['Unknown error'],
                 }),
               },
             },
@@ -152,15 +151,15 @@ export class VerificationService {
     const status = allSuccessful
       ? 'verified'
       : partialSuccess
-      ? 'partially_verified'
-      : 'unverified';
+        ? 'partially_verified'
+        : 'unverified';
 
     const code = allSuccessful ? 200 : partialSuccess ? 207 : 422;
     const message = allSuccessful
       ? 'Verification completed successfully'
       : partialSuccess
-      ? 'Verification completed with some errors'
-      : 'Verification failed';
+        ? 'Verification completed with some errors'
+        : 'Verification failed';
 
     return this.buildResponse(allSuccessful, code, message, applicationId, files, status);
   }
