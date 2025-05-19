@@ -243,7 +243,7 @@ export class ApplicationsService {
   }
 
   
-  async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
+    async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
     if (!benefitId || !reportType) {
       throw new BadRequestException('benefitId and type are required');
     }
@@ -271,10 +271,8 @@ export class ApplicationsService {
     const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
       // Helper function to generate CSV rows
       const csvRows = [headerFields.join(',')];
-      
       for (const [i, app] of applications.entries()) {
         const row: (string | number)[] = [];
-        
         // Auto-generate fields
         for (const field of autoGenerateFields) {
           if (field === 'serialNumber') {
@@ -283,31 +281,38 @@ export class ApplicationsService {
             row.push('');
           }
         }
-        
+
         // Application data fields
         for (const field of appDataFields) {
-          row.push(app.applicationData && app.applicationData[field] !== undefined 
-            ? app.applicationData[field] 
-            : '');
+          if (field === 'otr') {
+            row.push(app.applicationData['nspOtr'] !== undefined ? app.applicationData['nspOtr'] : '');
+          } else if (field === 'aadhaar') {
+            const aadhaar = app.applicationData['aadhaar'];
+            row.push(aadhaar ? aadhaar.slice(-4) : '');
+          } else {
+            row.push(app.applicationData[field]!== undefined ? app.applicationData[field] : '');
+          }
         }
-        
+
         // Application table data fields
         for (const field of applicationTableDataFields) {
           if (field === 'amount') {
-            row.push(app.finalAmount !== undefined ? app.finalAmount : '');
-          } else {
+            row.push(app.finalAmount || '');
+          } else if(field === 'applicationId') {
+            row.push(app.id !== undefined ? app.id : '');
+          } else{
             row.push(app[field] !== undefined ? app[field] : '');
           }
         }
-        
+
         csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
       }
-      
+
       return csvRows.join('\n');
     };
 
     let dynamicAppDataFields: string[] = [];
-    
+
     if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
       // Fetch applications first to get all keys
       const fieldSet = new Set<string>();
@@ -325,7 +330,6 @@ export class ApplicationsService {
     const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
     return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
-
 
 
 }
