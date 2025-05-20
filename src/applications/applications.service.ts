@@ -253,16 +253,17 @@ export class ApplicationsService {
       throw new BadRequestException('benefitId and type are required');
     }
 
-    const reports = reportsConfig;
-
-    // Get report config
-    const reportConfig = reports[reportType];
+    const reportConfig = reportsConfig[reportType];
     if (!reportConfig) {
       throw new BadRequestException('Invalid report type');
     }
-    const autoGenerateFields = reportConfig.autoGenerateFields ?? [];
-    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields ?? [];
-    const applicationTableDataFields = reportConfig.applicationTableDataFields ?? [];
+
+    const {
+      autoGenerateFields = [],
+      applicationDataColumnDataFields = [],
+      calculatedAmountColumnDataFields = [],
+      applicationTableDataFields = []
+    } = reportConfig;
 
     let applications: any[] = [];
     try {
@@ -273,67 +274,77 @@ export class ApplicationsService {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
 
-    const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
-      // Helper function to generate CSV rows
-      const csvRows = [headerFields.join(',')];
-      for (const [i, app] of applications.entries()) {
-        const row: (string | number)[] = [];
-        // Auto-generate fields
-        for (const field of autoGenerateFields) {
-          if (field === 'serialNumber') {
-            row.push((i + 1).toString());
-          } else {
-            row.push('');
-          }
+    const getFieldKeys = (apps: any[], sourceField: 'applicationData' | 'calculatedAmount'): string[] => {
+      const fieldSet = new Set<string>();
+      for (const app of apps) {
+        const source = app[sourceField];
+        if (source && typeof source === 'object') {
+          Object.keys(source).forEach(key => fieldSet.add(key));
         }
-
-        // Application data fields
-        for (const field of appDataFields) {
-          if (field === 'otr') {
-            row.push(app.applicationData['nspOtr'] !== undefined ? app.applicationData['nspOtr'] : '');
-          } else if (field === 'aadhaar') {
-            const aadhaar = app.applicationData['aadhaar'];
-            row.push(aadhaar ? aadhaar.slice(-4) : '');
-          } else {
-            row.push(app.applicationData[field] !== undefined ? app.applicationData[field] : '');
-          }
-        }
-
-        // Application table data fields
-        for (const field of applicationTableDataFields) {
-          if (field === 'amount') {
-            row.push(app.finalAmount ?? '');
-          } else if (field === 'applicationId') {
-            row.push(app.id !== undefined ? app.id : '');
-          } else {
-            row.push(app[field] !== undefined ? app[field] : '');
-          }
-        }
-
-        csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
       }
-
-      return csvRows.join('\n');
+      return Array.from(fieldSet);
     };
 
-    let dynamicAppDataFields: string[] = [];
-    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
-      // Fetch applications first to get all keys
-      const fieldSet = new Set<string>();
-      for (const app of applications) {
-        if (app.applicationData && typeof app.applicationData === 'object') {
-          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
-        }
-      }
-      dynamicAppDataFields = Array.from(fieldSet);
+    let finalAppDataFields = applicationDataColumnDataFields;
+    let finalCalcAmountFields = calculatedAmountColumnDataFields;
 
-      const headerFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
-      return generateCsvRows(applications, headerFields, dynamicAppDataFields);
+    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
+      finalAppDataFields = getFieldKeys(applications, 'applicationData');
     }
 
-    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
-    return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
+    if (calculatedAmountColumnDataFields.length === 1 && calculatedAmountColumnDataFields[0] === '*') {
+      finalCalcAmountFields = getFieldKeys(applications, 'calculatedAmount');
+    }
+
+    const headerFields = [
+      ...autoGenerateFields,
+      ...finalAppDataFields,
+      ...finalCalcAmountFields,
+      ...applicationTableDataFields,
+    ];
+
+    const csvRows: string[] = [headerFields.join(',')];
+
+    for (const [index, app] of applications.entries()) {
+      const row: (string | number)[] = [];
+
+      for (const field of autoGenerateFields) {
+        row.push(field === 'serialNumber' ? index + 1 : '');
+      }
+
+      for (const field of finalAppDataFields) {
+        let value = '';
+        if (field === 'otr') {
+          value = app.applicationData?.nspOtr ?? '';
+        } else if (field === 'aadhaar') {
+          const aadhaar = app.applicationData?.aadhaar;
+          value = aadhaar ? aadhaar.slice(-4) : '';
+        } else {
+          value = app.applicationData?.[field] ?? '';
+        }
+        row.push(value);
+      }
+
+      for (const field of finalCalcAmountFields) {
+        row.push(app.calculatedAmount?.[field] ?? '');
+      }
+
+      for (const field of applicationTableDataFields) {
+        if (field === 'amount') {
+          row.push(app.finalAmount ?? '');
+        } else if (field === 'applicationId') {
+          row.push(app.id ?? '');
+        } else {
+          row.push(app[field] ?? '');
+        }
+      }
+
+      csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+    }
+
+    return csvRows.join('\n');
   }
+
 
   // Get a single application by ID
   async calculateBenefit(id: number) {

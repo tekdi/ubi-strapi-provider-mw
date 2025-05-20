@@ -72,5 +72,26 @@
 			"orderId",
 			"amount"
 		]
+	},
+	"benefit_amounts":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr",
+			"udid",
+			"disabilityType",
+			"studentType"
+		],
+		"calculatedAmountColumnDataFields": [
+			"miscFeePaidTotal",
+			"disabilityAllowance",
+			"maintenanceAllowanceTotal",
+			"tuitionAdminReimbursement",
+			"bookAndStationaryGrantTotal"
+		],
+		"applicationTableDataFields": [
+			"amount"
+		]
 	}
 }
