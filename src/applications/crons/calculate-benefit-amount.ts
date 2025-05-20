@@ -44,14 +44,14 @@ export class ApplicationStatusUpdate {
             SELECT id
             FROM "Applications"
             WHERE "calculatedAmount" IS NULL
+            AND Lower('status')='approved'
                 AND ("calculationsProcessedAt" IS NULL OR "calculationsProcessedAt" <= ${filterTimestamp}::timestamp)
-            LIMIT ${this.configService.get('BENEFIT_CALCULATIONS_BATCH_SIZE') || 10}::bigint OFFSET 0
+            LIMIT ${this.configService.get('BENEFIT_CALCULATIONS_BATCH_SIZE') ?? 10}::bigint OFFSET 0
             `;
     }
     private async processApplications(applications: any[]) {
         for (const app of applications) {
             try {
-                console.log(app,'========')
                 const response = await this.applicationsService.calculateBenefit(Number(app.id))
             } catch (err) {
                 Logger.warn(`Failed to update application ${app.id}: ${err.message}`);
