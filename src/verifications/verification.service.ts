@@ -148,18 +148,31 @@ export class VerificationService {
     const allSuccessful = successCount === total;
     const partialSuccess = successCount > 0 && successCount < total;
 
-    const status = allSuccessful
-      ? 'verified'
-      : partialSuccess
-        ? 'partially_verified'
-        : 'unverified';
+    let status: 'verified' | 'partially_verified' | 'unverified';
+    if (allSuccessful) {
+      status = 'verified';
+    } else if (partialSuccess) {
+      status = 'partially_verified';
+    } else {
+      status = 'unverified';
+    }
 
-    const code = allSuccessful ? 200 : partialSuccess ? 207 : 422;
-    const message = allSuccessful
-      ? 'Verification completed successfully'
-      : partialSuccess
-        ? 'Verification completed with some errors'
-        : 'Verification failed';
+    let code: number;
+    if (allSuccessful) {
+      code = 200;
+    } else if (partialSuccess) {
+      code = 207;
+    } else {
+      code = 422;
+    }
+    let message: string;
+    if (allSuccessful) {
+      message = 'Verification completed successfully';
+    } else if (partialSuccess) {
+      message = 'Verification completed with some errors';
+    } else {
+      message = 'Verification failed';
+    }
 
     return this.buildResponse(allSuccessful, code, message, applicationId, files, status);
   }
