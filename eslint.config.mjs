@@ -2,12 +2,11 @@
 import eslint from '@eslint/js';
 import jsdoc from 'eslint-plugin-jsdoc';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import securityPlugin from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-const importPlugin = require('eslint-plugin-import');
-const pluginSecurity = require('eslint-plugin-security');
-const decoratorPosition = require('eslint-plugin-decorator-position');
+const { configs: securityConfigs } = securityPlugin;
 
 export default tseslint.config(
 	{
@@ -19,16 +18,24 @@ export default tseslint.config(
 			'**/*.d.ts',
 		],
 	},
-	...(importPlugin.flatConfigs?.recommended
-		? [importPlugin.flatConfigs.recommended]
-		: []),
-	...decoratorPosition.configs.recommended,
-	...tseslint.configs.recommendedTypeChecked,
+	// ESLint Configs
 	eslint.configs.recommended,
+	...tseslint.configs.recommendedTypeChecked,
+
+	// ESLint Plugins
+	// Prettier plugin
 	eslintPluginPrettierRecommended,
+
+	// JSdoc plugin
 	jsdoc.configs['flat/recommended'],
-	pluginSecurity.configs.recommended,
+
+	// Security plugin
+	securityConfigs.recommended,
+
+	// Sonar plugin
 	sonarjs.configs.recommended,
+
+	// Globals
 	{
 		languageOptions: {
 			globals: {
@@ -47,25 +54,38 @@ export default tseslint.config(
 	{
 		plugins: {},
 		rules: {
+			// TypeScript Rules
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-floating-promises': 'warn',
 			'@typescript-eslint/no-unsafe-argument': 'warn',
-			'decorator-position/decorator-position': ['error', { printWidth: 120 }],
-			'eol-last': ['error', 'always'],
-			'import/order': 'warn',
-			indent: ['error', 'tab'],
+
+			// JSdoc Rules
 			'jsdoc/require-jsdoc': 'off',
+
+			// EOL, Linebreak, and Indentation Rules
+			'eol-last': ['error', 'always'],
 			'linebreak-style': ['error', 'unix'],
 			'no-trailing-spaces': 'error',
+			indent: ['error', 'tab', { SwitchCase: 1 }],
+
+			// Prettier and Indentation Rules
 			'prettier/prettier': [
 				'error',
 				{
-					useTabs: true,
+					arrowParens: 'always',
 					endOfLine: 'lf',
-					trailingComma: 'all',
+					semi: true,
+					singleQuote: true,
+					tabWidth: 4,
+					trailingComma: 'es5',
+					useTabs: true,
 				},
 			],
+
+			// Security Rules
 			'security/detect-object-injection': 'warn',
+
+			// Sonar Rules
 			'sonarjs/no-duplicate-string': 'warn',
 		},
 	},
