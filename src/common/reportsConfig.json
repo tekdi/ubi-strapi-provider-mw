@@ -9,6 +9,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -26,6 +27,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -43,6 +45,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -56,6 +59,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -70,6 +74,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -91,6 +96,7 @@
 			"bookAndStationaryGrantTotal"
 		],
 		"applicationTableDataFields": [
+			"status",
 			"amount"
 		]
 	}
