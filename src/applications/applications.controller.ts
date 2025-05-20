@@ -112,6 +112,17 @@ export class ApplicationsController {
       throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
     }
   }
+
+  @Get('calculate-benefit/:id')
+  @ApiBasicAuth('access-token')
+  @UseGuards(AuthGuard)
+  @ApiOperation(ApplicationsApiDocs.calculateBenefit.operation)
+  @ApiParam(ApplicationsApiDocs.calculateBenefit.param)
+  @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.success)
+  @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.notFound)
+  async calculateBenefit(@Param('id') id: string) {
+    return this.applicationsService.calculateBenefit(Number(id));
+  }
 }
 
 
