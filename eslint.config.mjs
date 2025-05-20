@@ -2,12 +2,11 @@
 import eslint from '@eslint/js';
 import jsdoc from 'eslint-plugin-jsdoc';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import securityPlugin from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-const importPlugin = require('eslint-plugin-import');
-const pluginSecurity = require('eslint-plugin-security');
-const decoratorPosition = require('eslint-plugin-decorator-position');
+const { configs: securityConfigs } = securityPlugin;
 
 export default tseslint.config(
 	{
@@ -27,19 +26,11 @@ export default tseslint.config(
 	// Prettier plugin
 	eslintPluginPrettierRecommended,
 
-	// Import plugin
-	...(importPlugin.flatConfigs?.recommended
-		? [importPlugin.flatConfigs.recommended]
-		: []),
-
-	// Decorator plugin
-	...decoratorPosition.configs.recommended,
-
 	// JSdoc plugin
 	jsdoc.configs['flat/recommended'],
 
 	// Security plugin
-	pluginSecurity.configs.recommended,
+	securityConfigs.recommended,
 
 	// Sonar plugin
 	sonarjs.configs.recommended,
@@ -67,12 +58,6 @@ export default tseslint.config(
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-floating-promises': 'warn',
 			'@typescript-eslint/no-unsafe-argument': 'warn',
-
-			// Decorator Rules
-			'decorator-position/decorator-position': ['error', { printWidth: 120 }],
-
-			// Import Rules
-			'import/order': 'warn',
 
 			// JSdoc Rules
 			'jsdoc/require-jsdoc': 'off',

@@ -53,8 +53,6 @@
     "@types/supertest": "^6.0.2",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-decorator-position": "^6.0.0",
-    "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsdoc": "^50.6.17",
     "eslint-plugin-prettier": "^5.4.0",
     "eslint-plugin-security": "^3.0.1",
