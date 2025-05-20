@@ -303,34 +303,37 @@ export class ApplicationsService {
   private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
       return await this.prisma.applications.findMany({
-        where: { benefitId, status: {
-          notIn: [
-            'rejected',
-            'Rejected',
-            'pending',
-            'Pending',
-            'reject'
-          ]
-        } }
+        where: { benefitId,  }
       });
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
   }
 
-  private resolveDynamicFields(apps: any[], fields: string[], source: 'applicationData' | 'calculatedAmount'): string[] {
-    if (fields.length === 1 && fields[0] === '*') {
-      const keySet = new Set<string>();
-      for (const app of apps) {
-        const sourceData = app[source];
-        if (sourceData && typeof sourceData === 'object') {
-          Object.keys(sourceData).forEach(key => keySet.add(key));
-        }
-      }
-      return Array.from(keySet);
+private resolveDynamicFields(apps: any[], fields: string[], source: 'applicationData' | 'calculatedAmount'): string[] {
+  if (!Array.isArray(fields)) return [];
+
+  const isWildcard = fields.length === 1 && fields[0] === '*';
+
+  const keySet = new Set<string>();
+  for (const app of apps) {
+    const sourceData = app[source];
+    if (sourceData && typeof sourceData === 'object') {
+      Object.keys(sourceData).forEach(key => keySet.add(key));
     }
-    return fields;
   }
+
+  if (isWildcard) {
+    return Array.from(keySet).sort((a, b) => a.localeCompare(b));
+  }
+  if (source === 'calculatedAmount') {
+    return fields.filter(field => keySet.has(field));
+  }
+
+  // 🟢 For applicationData or others: return fields as-is
+  return fields;
+}
+
 
   private generateAutoFields(fields: string[], index: number): (string | number)[] {
     return fields.map(field => field === 'serialNumber' ? index + 1 : '');
@@ -344,9 +347,13 @@ export class ApplicationsService {
     });
   }
 
-  private generateCalcAmountFields(app: any, fields: string[]): string[] {
-    return fields.map(field => app.calculatedAmount?.[field] ?? '');
-  }
+  private generateCalcAmountFields(app: any, fields: string[]): any[] {
+  const calcAmountData = app.calculatedAmount ?? {};
+  return fields.map(field => {
+    const value = calcAmountData[field];
+    return value ?? '';
+  });
+}
 
   private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
     return fields.map(field => {
