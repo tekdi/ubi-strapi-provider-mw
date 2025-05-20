@@ -44,7 +44,7 @@ export class ApplicationStatusUpdate {
             SELECT id
             FROM "Applications"
             WHERE "calculatedAmount" IS NULL
-            AND Lower('status')='approved'
+            AND LOWER("status") NOT IN ('rejected', 'pending', 'reject')
                 AND ("calculationsProcessedAt" IS NULL OR "calculationsProcessedAt" <= ${filterTimestamp}::timestamp)
             LIMIT ${this.configService.get('BENEFIT_CALCULATIONS_BATCH_SIZE') ?? 10}::bigint OFFSET 0
             `;
