@@ -19,16 +19,32 @@ export default tseslint.config(
 			'**/*.d.ts',
 		],
 	},
+	// ESLint Configs
+	eslint.configs.recommended,
+	...tseslint.configs.recommendedTypeChecked,
+
+	// ESLint Plugins
+	// Prettier plugin
+	eslintPluginPrettierRecommended,
+
+	// Import plugin
 	...(importPlugin.flatConfigs?.recommended
 		? [importPlugin.flatConfigs.recommended]
 		: []),
+
+	// Decorator plugin
 	...decoratorPosition.configs.recommended,
-	...tseslint.configs.recommendedTypeChecked,
-	eslint.configs.recommended,
-	eslintPluginPrettierRecommended,
+
+	// JSdoc plugin
 	jsdoc.configs['flat/recommended'],
+
+	// Security plugin
 	pluginSecurity.configs.recommended,
+
+	// Sonar plugin
 	sonarjs.configs.recommended,
+
+	// Globals
 	{
 		languageOptions: {
 			globals: {
@@ -47,25 +63,44 @@ export default tseslint.config(
 	{
 		plugins: {},
 		rules: {
+			// TypeScript Rules
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-floating-promises': 'warn',
 			'@typescript-eslint/no-unsafe-argument': 'warn',
+
+			// Decorator Rules
 			'decorator-position/decorator-position': ['error', { printWidth: 120 }],
-			'eol-last': ['error', 'always'],
+
+			// Import Rules
 			'import/order': 'warn',
-			indent: ['error', 'tab'],
+
+			// JSdoc Rules
 			'jsdoc/require-jsdoc': 'off',
+
+			// EOL, Linebreak, and Indentation Rules
+			'eol-last': ['error', 'always'],
 			'linebreak-style': ['error', 'unix'],
 			'no-trailing-spaces': 'error',
+			indent: ['error', 'tab', { SwitchCase: 1 }],
+
+			// Prettier and Indentation Rules
 			'prettier/prettier': [
 				'error',
 				{
-					useTabs: true,
+					arrowParens: 'always',
 					endOfLine: 'lf',
-					trailingComma: 'all',
+					semi: true,
+					singleQuote: true,
+					tabWidth: 4,
+					trailingComma: 'es5',
+					useTabs: true,
 				},
 			],
+
+			// Security Rules
 			'security/detect-object-injection': 'warn',
+
+			// Sonar Rules
 			'sonarjs/no-duplicate-string': 'warn',
 		},
 	},
