@@ -303,7 +303,15 @@ export class ApplicationsService {
   private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
       return await this.prisma.applications.findMany({
-        where: { benefitId,  }
+        where: { benefitId,status: {
+          notIn: [
+            'rejected',
+            'Rejected',
+            'pending',
+            'Pending',
+            'reject'
+          ]
+        }  }
       });
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
