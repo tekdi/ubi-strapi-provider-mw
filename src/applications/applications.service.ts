@@ -249,9 +249,6 @@ export class ApplicationsService {
 
 
   async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
-    if (!benefitId || !reportType) {
-      throw new BadRequestException('benefitId and type are required');
-    }
 
     const reportConfig = reportsConfig[reportType];
     if (!reportConfig) {
@@ -265,86 +262,95 @@ export class ApplicationsService {
       applicationTableDataFields = []
     } = reportConfig;
 
-    let applications: any[] = [];
-    try {
-      applications = await this.prisma.applications.findMany({
-        where: { benefitId: benefitId },
-      });
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
-    }
+    const applications = await this.fetchApplications(benefitId);
 
-    const getFieldKeys = (apps: any[], sourceField: 'applicationData' | 'calculatedAmount'): string[] => {
-      const fieldSet = new Set<string>();
-      for (const app of apps) {
-        const source = app[sourceField];
-        if (source && typeof source === 'object') {
-          Object.keys(source).forEach(key => fieldSet.add(key));
-        }
-      }
-      return Array.from(fieldSet);
-    };
+    const finalAppDataFields = this.resolveDynamicFields(
+      applications,
+      applicationDataColumnDataFields,
+      'applicationData'
+    );
 
-    let finalAppDataFields = applicationDataColumnDataFields;
-    let finalCalcAmountFields = calculatedAmountColumnDataFields;
-
-    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
-      finalAppDataFields = getFieldKeys(applications, 'applicationData');
-    }
-
-    if (calculatedAmountColumnDataFields.length === 1 && calculatedAmountColumnDataFields[0] === '*') {
-      finalCalcAmountFields = getFieldKeys(applications, 'calculatedAmount');
-    }
+    const finalCalcAmountFields = this.resolveDynamicFields(
+      applications,
+      calculatedAmountColumnDataFields,
+      'calculatedAmount'
+    );
 
     const headerFields = [
       ...autoGenerateFields,
       ...finalAppDataFields,
       ...finalCalcAmountFields,
-      ...applicationTableDataFields,
+      ...applicationTableDataFields
     ];
 
-    const csvRows: string[] = [headerFields.join(',')];
+    const csvRows = [headerFields.join(',')];
 
     for (const [index, app] of applications.entries()) {
-      const row: (string | number)[] = [];
-
-      for (const field of autoGenerateFields) {
-        row.push(field === 'serialNumber' ? index + 1 : '');
-      }
-
-      for (const field of finalAppDataFields) {
-        let value = '';
-        if (field === 'otr') {
-          value = app.applicationData?.nspOtr ?? '';
-        } else if (field === 'aadhaar') {
-          const aadhaar = app.applicationData?.aadhaar;
-          value = aadhaar ? aadhaar.slice(-4) : '';
-        } else {
-          value = app.applicationData?.[field] ?? '';
-        }
-        row.push(value);
-      }
-
-      for (const field of finalCalcAmountFields) {
-        row.push(app.calculatedAmount?.[field] ?? '');
-      }
-
-      for (const field of applicationTableDataFields) {
-        if (field === 'amount') {
-          row.push(app.finalAmount ?? '');
-        } else if (field === 'applicationId') {
-          row.push(app.id ?? '');
-        } else {
-          row.push(app[field] ?? '');
-        }
-      }
-
-      csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+      const row = [
+        ...this.generateAutoFields(autoGenerateFields, index),
+        ...this.generateAppDataFields(app, finalAppDataFields),
+        ...this.generateCalcAmountFields(app, finalCalcAmountFields),
+        ...this.generateAppTableFields(app, applicationTableDataFields)
+      ];
+      csvRows.push(this.escapeCsvRow(row));
     }
 
     return csvRows.join('\n');
   }
 
+  // --- Helper Methods ---
+
+  private async fetchApplications(benefitId: string): Promise<any[]> {
+    try {
+      return await this.prisma.applications.findMany({
+        where: { benefitId }
+      });
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
+    }
+  }
+
+  private resolveDynamicFields(apps: any[], fields: string[], source: 'applicationData' | 'calculatedAmount'): string[] {
+    if (fields.length === 1 && fields[0] === '*') {
+      const keySet = new Set<string>();
+      for (const app of apps) {
+        const sourceData = app[source];
+        if (sourceData && typeof sourceData === 'object') {
+          Object.keys(sourceData).forEach(key => keySet.add(key));
+        }
+      }
+      return Array.from(keySet);
+    }
+    return fields;
+  }
+
+  private generateAutoFields(fields: string[], index: number): (string | number)[] {
+    return fields.map(field => field === 'serialNumber' ? index + 1 : '');
+  }
+
+  private generateAppDataFields(app: any, fields: string[]): string[] {
+    return fields.map(field => {
+      if (field === 'otr') return app.applicationData?.nspOtr ?? '';
+      if (field === 'aadhaar') return app.applicationData?.aadhaar?.slice(-4) ?? '';
+      return app.applicationData?.[field] ?? '';
+    });
+  }
+
+  private generateCalcAmountFields(app: any, fields: string[]): string[] {
+    return fields.map(field => app.calculatedAmount?.[field] ?? '');
+  }
+
+  private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
+    return fields.map(field => {
+      if (field === 'amount') return app.finalAmount ?? '';
+      if (field === 'applicationId') return app.id ?? '';
+      return app[field] ?? '';
+    });
+  }
+
+  private escapeCsvRow(row: (string | number)[]): string {
+    return row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+  }
 
   // Get a single application by ID
   async calculateBenefit(id: number) {
