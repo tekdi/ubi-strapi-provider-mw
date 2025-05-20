@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, SchedulerRegistry } from '@nestjs/schedule';
-import { Prisma, ApplicationFiles } from '@prisma/client';
-import { PrismaService } from '../../prisma.service'; // Your custom Prisma service
+import { SchedulerRegistry } from '@nestjs/schedule';
+import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ApplicationsService } from '../applications.service';
 import { CronJob } from 'cron';
@@ -14,7 +13,7 @@ export class ApplicationStatusUpdate {
         private readonly schedulerRegistry: SchedulerRegistry,
     ) { }
     onModuleInit() {
-        const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') || '*/30 * * * *';
+        const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') ?? '*/30 * * * *';
         const job = new CronJob(cronExpression, () => this.updateApplicationStatusCron());
 
         this.schedulerRegistry.addCronJob('application-status-update', job);
@@ -23,7 +22,6 @@ export class ApplicationStatusUpdate {
     private async updateApplicationStatusCron() {
         try {
             const applications = await this.getApplications();
-            console.log(applications,'-----------')
             await this.processApplications(applications);
         } catch (error) {
             Logger.error(`Error in 'benefit calculation cron': ${error.message}`, error.stack);
@@ -33,7 +31,7 @@ export class ApplicationStatusUpdate {
     async getApplications() {
         let dt = new Date();
         let BENEFITS_CALCULATION_LAST_PROCESS_HOURS = Number(
-            this.configService.get('BENEFIT_CALCULATIONS_LAST_PROCESS_HOURS') || 24,
+            this.configService.get('BENEFIT_CALCULATIONS_LAST_PROCESS_HOURS') ?? 24,
         );
         let filterTimestamp = new Date(
             dt.setHours(dt.getHours() - BENEFITS_CALCULATION_LAST_PROCESS_HOURS),

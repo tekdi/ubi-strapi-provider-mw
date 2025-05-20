@@ -399,12 +399,12 @@ export class ApplicationsService {
     const output: Record<string, number> = {};
     let total = 0;
 
-    for (const rule of benefitDefinition.benefitCalculationRules || []) {
+    for (const rule of benefitDefinition.benefitCalculationRules ?? []) {
       let amount = 0;
 
       switch (rule.type) {
         case "fixed":
-          amount = rule.fixedValue || 0;
+          amount = rule.fixedValue ?? 0;
           break;
 
         case "lookup": {
