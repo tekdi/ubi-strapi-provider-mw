@@ -6,9 +6,13 @@
 		"applicationDataColumnDataFields": [
 			"*"
 		],
+		"calculatedAmountColumnDataFields":[
+			"*"
+		],
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -26,6 +30,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -43,6 +48,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -56,6 +62,7 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -70,6 +77,25 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
+			"status",
+			"amount"
+		]
+	},
+	"benefit_amounts":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr",
+			"udid",
+			"disabilityType",
+			"studentType"
+		],
+		"calculatedAmountColumnDataFields": [
+			"*"
+		],
+		"applicationTableDataFields": [
+			"status",
 			"amount"
 		]
 	}
