@@ -7,7 +7,7 @@ export function titleCase(str) {
 }
 
 export function generateRandomString(length: number = 4): string {
-    return crypto.randomBytes(length).toString('hex');
+    return crypto.randomBytes(length).toString('hex').toUpperCase();
 }
 
 export function getBrowserInfo(userAgent: string) {
