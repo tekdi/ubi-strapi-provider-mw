@@ -6,6 +6,9 @@
 		"applicationDataColumnDataFields": [
 			"*"
 		],
+		"calculatedAmountColumnDataFields":[
+			"*"
+		],
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
@@ -89,11 +92,7 @@
 			"studentType"
 		],
 		"calculatedAmountColumnDataFields": [
-			"miscFeePaidTotal",
-			"disabilityAllowance",
-			"maintenanceAllowanceTotal",
-			"tuitionAdminReimbursement",
-			"bookAndStationaryGrantTotal"
+			"*"
 		],
 		"applicationTableDataFields": [
 			"status",

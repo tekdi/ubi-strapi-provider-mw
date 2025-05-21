@@ -273,7 +273,8 @@ export class ApplicationsService {
     const finalCalcAmountFields = this.resolveDynamicFields(
       applications,
       calculatedAmountColumnDataFields,
-      'calculatedAmount'
+      'calculatedAmount',
+      ['totalPayout']
     );
 
     const headerFields = [
@@ -303,22 +304,24 @@ export class ApplicationsService {
   private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
       return await this.prisma.applications.findMany({
-        where: { benefitId,status: {
-          notIn: [
-            'rejected',
-            'Rejected',
-            'pending',
-            'Pending',
-            'reject'
-          ]
-        }  }
-      });
+				where: {
+					benefitId,
+					// status: {
+					// 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+					// },
+				},
+			});
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
   }
 
-private resolveDynamicFields(apps: any[], fields: string[], source: 'applicationData' | 'calculatedAmount'): string[] {
+private resolveDynamicFields(
+  apps: any[],
+  fields: string[],
+  source: 'applicationData' | 'calculatedAmount',
+  excludeFields: string[] = []
+): string[] {
   if (!Array.isArray(fields)) return [];
 
   const isWildcard = fields.length === 1 && fields[0] === '*';
@@ -327,19 +330,19 @@ private resolveDynamicFields(apps: any[], fields: string[], source: 'application
   for (const app of apps) {
     const sourceData = app[source];
     if (sourceData && typeof sourceData === 'object') {
-      Object.keys(sourceData).forEach(key => keySet.add(key));
+      Object.keys(sourceData).forEach(key => {
+        if (!excludeFields.includes(key)) {
+          keySet.add(key);
+        }
+      });
     }
   }
 
   if (isWildcard) {
     return Array.from(keySet).sort((a, b) => a.localeCompare(b));
   }
-  if (source === 'calculatedAmount') {
-    return fields.filter(field => keySet.has(field));
-  }
 
-  // 🟢 For applicationData or others: return fields as-is
-  return fields;
+  return fields.filter(field => !excludeFields.includes(field));
 }
 
 
