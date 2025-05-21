@@ -306,9 +306,9 @@ export class ApplicationsService {
       return await this.prisma.applications.findMany({
 				where: {
 					benefitId,
-					status: {
-						notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
-					},
+					// status: {
+					// 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+					// },
 				},
 			});
     } catch (error) {
