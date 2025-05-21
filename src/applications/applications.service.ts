@@ -392,7 +392,7 @@ private resolveDynamicFields(
     try {
       benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
     } catch (error) {
-      console.error(`Error fetching benefit details for application: ${id}`, error.message);
+      throw new NotFoundException('Benefit not found');
     }
    
     
