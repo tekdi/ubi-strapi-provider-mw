@@ -95,6 +95,8 @@
 			"*"
 		],
 		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
 			"status",
 			"amount"
 		]
