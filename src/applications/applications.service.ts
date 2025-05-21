@@ -274,7 +274,7 @@ export class ApplicationsService {
       applications,
       calculatedAmountColumnDataFields,
       'calculatedAmount',
-      ['totalPayout']
+      ['totalPayout', 'info']
     );
 
     const headerFields = [
@@ -413,60 +413,86 @@ private resolveDynamicFields(
   /**
   * Main function to calculate benefit payout.
   */
-  async doBenefitCalculations(applicationData: any, benefitDefinition: any) {
-    const output: Record<string, number> = {};
-    let total = 0;
+async doBenefitCalculations(applicationData: any, benefitDefinition: any) {
+	const result: Record<string, any> = {};
+	const info: Record<string, any> = {};
+	let total = 0;
 
-    for (const rule of benefitDefinition.benefitCalculationRules ?? []) {
-      let amount = 0;
+	for (const rule of benefitDefinition.benefitCalculationRules ?? []) {
+		let amount = 0;
+		const ruleKey = rule.outputField;
+		const debugInfo: any = {
+			ruleType: rule.type,
+			inputFieldsUsed: rule.inputFields ?? [],
+			resolvedValues: {},
+			logicUsed: null,
+		};
 
-      switch (rule.type) {
-        case "fixed":
-          amount = rule.fixedValue ?? 0;
-          break;
+		switch (rule.type) {
+			case 'fixed':
+				amount = rule.fixedValue ?? 0;
+				debugInfo.resolvedValues = { fixedValue: rule.fixedValue };
+				break;
 
-        case "lookup": {
-          const inputVal = applicationData[rule.inputFields[0]];
-          const found = rule.lookupTable.find((row: any) => row.match === inputVal);
-          amount = found ? found.amount : 0;
-          break;
-        }
+			case 'lookup': {
+				const inputVal = applicationData[rule.inputFields[0]];
+				const found = rule.lookupTable.find((row: any) => row.match === inputVal);
+				amount = found ? found.amount : 0;
+				debugInfo.resolvedValues = {
+					inputValue: inputVal,
+					matchedRow: found ?? null,
+				};
+				break;
+			}
 
-        case "conditional": {
-          for (const condition of rule.conditions) {
-            const matches = condition.ifExpr
-              ? this.evaluateIfExpr(condition.ifExpr, applicationData)
-              : Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
+			case 'conditional': {
+				for (const condition of rule.conditions) {
+					const matches = condition.ifExpr
+						? this.evaluateIfExpr(condition.ifExpr, applicationData)
+						: Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
 
-            if (matches) {
-              if (condition.then.amount === "value") {
-                amount = Number(applicationData[rule.inputFields[0]]) || 0;
-              } else {
-                amount = Number(condition.then.amount) || 0;
-              }
-              break;
-            }
-          }
-          break;
-        }
+					debugInfo.logicUsed = condition;
 
+					if (matches) {
+						if (condition.then.amount === 'value') {
+							amount = Number(applicationData[rule.inputFields[0]]) || 0;
+						} else {
+							amount = Number(condition.then.amount) || 0;
+						}
+						debugInfo.resolvedValues = {
+							inputValue: applicationData[rule.inputFields[0]],
+							then: condition.then,
+						};
+						break;
+					}
+				}
+				break;
+			}
 
-        case "formula":
-          amount = this.evaluateFormula(rule.formula, applicationData);
-          break;
+			case 'formula':
+				amount = this.evaluateFormula(rule.formula, applicationData);
+				debugInfo.resolvedValues = {
+					formula: rule.formula,
+					applicationDataUsed: applicationData,
+				};
+				break;
 
-        default:
-          console.warn(`Unsupported rule type: ${rule.type}`);
-          break;
-      }
+			default:
+				console.warn(`Unsupported rule type: ${rule.type}`);
+				break;
+		}
 
-      output[rule.outputField] = amount;
-      total += amount;
-    }
+		result[ruleKey] = amount;
+		info[ruleKey] = debugInfo;
+		total += amount;
+	}
 
-    output.totalPayout = total;
-    return output;
-  }
+	result.totalPayout = total;
+	result.info = info;
+
+	return result;
+}
+
 
   /**
  * Very basic and safe math formula evaluator (supports + - * / and variables).
