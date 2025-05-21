@@ -304,46 +304,46 @@ export class ApplicationsService {
   private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
       return await this.prisma.applications.findMany({
-				where: {
-					benefitId,
-					status: {
-						notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
-					},
-				},
-			});
+        where: {
+          benefitId,
+          status: {
+            notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+          },
+        },
+      });
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
   }
 
-private resolveDynamicFields(
-  apps: any[],
-  fields: string[],
-  source: 'applicationData' | 'calculatedAmount',
-  excludeFields: string[] = []
-): string[] {
-  if (!Array.isArray(fields)) return [];
+  private resolveDynamicFields(
+    apps: any[],
+    fields: string[],
+    source: 'applicationData' | 'calculatedAmount',
+    excludeFields: string[] = []
+  ): string[] {
+    if (!Array.isArray(fields)) return [];
 
-  const isWildcard = fields.length === 1 && fields[0] === '*';
+    const isWildcard = fields.length === 1 && fields[0] === '*';
 
-  const keySet = new Set<string>();
-  for (const app of apps) {
-    const sourceData = app[source];
-    if (sourceData && typeof sourceData === 'object') {
-      Object.keys(sourceData).forEach(key => {
-        if (!excludeFields.includes(key)) {
-          keySet.add(key);
-        }
-      });
+    const keySet = new Set<string>();
+    for (const app of apps) {
+      const sourceData = app[source];
+      if (sourceData && typeof sourceData === 'object') {
+        Object.keys(sourceData).forEach(key => {
+          if (!excludeFields.includes(key)) {
+            keySet.add(key);
+          }
+        });
+      }
     }
-  }
 
-  if (isWildcard) {
-    return Array.from(keySet).sort((a, b) => a.localeCompare(b));
-  }
+    if (isWildcard) {
+      return Array.from(keySet).sort((a, b) => a.localeCompare(b));
+    }
 
-  return fields.filter(field => !excludeFields.includes(field));
-}
+    return fields.filter(field => !excludeFields.includes(field));
+  }
 
 
   private generateAutoFields(fields: string[], index: number): (string | number)[] {
@@ -359,12 +359,12 @@ private resolveDynamicFields(
   }
 
   private generateCalcAmountFields(app: any, fields: string[]): any[] {
-  const calcAmountData = app.calculatedAmount ?? {};
-  return fields.map(field => {
-    const value = calcAmountData[field];
-    return value ?? '';
-  });
-}
+    const calcAmountData = app.calculatedAmount ?? {};
+    return fields.map(field => {
+      const value = calcAmountData[field];
+      return value ?? '';
+    });
+  }
 
   private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
     return fields.map(field => {
@@ -389,24 +389,20 @@ private resolveDynamicFields(
     }
 
     let benefitDetails;
-    try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
-    } catch (error) {
-      throw new NotFoundException('Benefit not found');
+
+    benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+
+    if (!benefitDetails) {
+      throw new NotFoundException('Benefit details not found');
     }
-   
+
+    const amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
+      await this.update(id, {
+        calculatedAmount: amounts,
+        finalAmount: `${amounts?.totalPayout}`,
+        calculationsProcessedAt: new Date()
+      })
     
-    let amounts;
-    amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
-    try{
-        await this.update(id, {
-          calculatedAmount: amounts,
-          finalAmount: `${amounts?.totalPayout}`,
-          calculationsProcessedAt: new Date()
-        })
-    }catch(err){
-      console.error(`Error updating benefit details for application: ${id}`, err.message);
-    }
     return amounts;
   }
 
