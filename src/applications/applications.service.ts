@@ -306,9 +306,9 @@ export class ApplicationsService {
       return await this.prisma.applications.findMany({
         where: {
           benefitId,
-          status: {
-            notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
-          },
+          // status: {
+          // 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+          // },
         },
       });
     } catch (error) {
@@ -397,12 +397,12 @@ export class ApplicationsService {
     }
 
     const amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
-      await this.update(id, {
-        calculatedAmount: amounts,
-        finalAmount: `${amounts?.totalPayout}`,
-        calculationsProcessedAt: new Date()
-      })
-    
+    await this.update(id, {
+      calculatedAmount: amounts,
+      finalAmount: `${amounts?.totalPayout}`,
+      calculationsProcessedAt: new Date()
+    })
+
     return amounts;
   }
 
