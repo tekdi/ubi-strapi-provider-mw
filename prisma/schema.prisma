@@ -15,26 +15,47 @@ datasource db {
 }
 
 model Applications {
-  id                Int              @id @default(autoincrement())
-  benefitId         String           @unique
-  status            String
-  applicationData   Json             // form fields saved as they are dynamic 
-  customerId        String?          
-  bapId             String?          
-  calculatedAmount  String?          
-  finalAmount       String?         
-  applicationFiles  ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
-  createdAt         DateTime         @default(now()) // Automatically set on creation
-  updatedAt         DateTime         @updatedAt      // Automatically updated on modification
+  id               Int                @id @default(autoincrement())
+  benefitId        String
+  status           String
+  applicationData  Json // form fields saved as they are dynamic
+  customerId       String?
+  bapId            String?
+  calculatedAmount Json?
+  finalAmount      String?
+  orderId          String?
+  remark           String?
+  updatedBy        Int?
+  actionLog        Json?
+  calculationsProcessedAt      DateTime?
+  applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
+  createdAt        DateTime           @default(now()) // Automatically set on creation
+  updatedAt        DateTime           @updatedAt // Automatically updated on modification
 }
 
 model ApplicationFiles {
   id                 Int          @id @default(autoincrement())
-  storage            String       
-  filePath           String?       
-  verificationStatus Json?         
+  storage            String
+  filePath           String?
+  verificationStatus Json?
   applicationId      Int
   application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
   createdAt          DateTime     @default(now()) // Automatically set on creation
-  updatedAt          DateTime     @updatedAt      // Automatically updated on modification
+  updatedAt          DateTime     @updatedAt // Automatically updated on modification
+}
+
+model Users {
+  id          Int       @id @default(autoincrement())
+  s_id        String    @unique
+  roles       String[] // Array of strings to store multiple roles, can be empty
+  s_roles     String[] // Array of strings to store multiple roles, can be empty
+  first_name  String
+  middle_name String?
+  last_name   String?
+  email       String    @unique
+  phone       String?
+  enabled     Boolean   @default(true)
+  blocked     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) // Automatically set on creation
+  updatedAt   DateTime? @updatedAt // Automatically updated on modification
 }
