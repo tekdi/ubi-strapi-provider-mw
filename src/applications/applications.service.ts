@@ -73,7 +73,7 @@ export class ApplicationsService {
     for (const { key, value } of base64Fields) {
       // A - Process base64 fields for uploads
       // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
-      const randomBytes = generateRandomString(); // Generate a secure random string
+      const randomBytes = generateRandomString().toUpperCase(); // Generate a secure random string
       let filename = `${applicationId}_${key}_${Date.now()}_${randomBytes}.json`;
 
       // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage

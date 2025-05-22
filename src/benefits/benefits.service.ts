@@ -285,12 +285,12 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.orderId ?? `TLEXP_${generateRandomString()}_${Date.now()}`;
+      const orderId: string = benefit?.orderId ?? `TLEXP_${generateRandomString().toUpperCase()}_${Date.now()}`;
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
 
-      if(!orderDetails?.orderId) {
+      if (!orderDetails?.orderId) {
         throw new BadRequestException('Failed to update order details');
       }
 
@@ -346,18 +346,18 @@ export class BenefitsService {
     let statusCode;
     if (status === 'APPROVED') {
       statusCode = {
-      "code": "APPLICATION-APPROVED",
-      "name": "Application Approved"
+        "code": "APPLICATION-APPROVED",
+        "name": "Application Approved"
       };
     } else if (status === 'REJECTED') {
       statusCode = {
-      "code": "APPLICATION-REJECTED",
-      "name": "Application Rejected"
+        "code": "APPLICATION-REJECTED",
+        "name": "Application Rejected"
       };
     } else {
       statusCode = {
-      "code": "APPLICATION-" + status, // from db 
-      "name": "Application " + titleCase(application.status)
+        "code": "APPLICATION-" + status, // from db 
+        "name": "Application " + titleCase(application.status)
       };
     }
 
