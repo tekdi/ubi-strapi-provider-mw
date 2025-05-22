@@ -48,7 +48,7 @@ export class ApplicationStatusUpdate {
             SELECT id
             FROM "Applications"
             WHERE "calculatedAmount" IS NULL
-            AND ("calculationsProcessedAt" IS NULL OR "calculationsProcessedAt" <= ${filterTimestamp}::timestamp)
+                AND ("calculationsProcessedAt" IS NULL OR "calculationsProcessedAt" <= ${filterTimestamp}::timestamp)
             LIMIT ${this.configService.get('BENEFIT_CALCULATIONS_BATCH_SIZE') ?? 10}::bigint OFFSET 0
             `;
 	}
