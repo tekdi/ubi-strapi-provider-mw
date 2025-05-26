@@ -149,7 +149,7 @@ export class BenefitsService {
       },
     );
 
-    return response;
+    return response.data;
   }
 
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
