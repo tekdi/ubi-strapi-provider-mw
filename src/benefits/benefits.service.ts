@@ -3,7 +3,9 @@ import {
   Injectable,
   Inject,
   InternalServerErrorException,
-  forwardRef
+  forwardRef,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
@@ -138,18 +140,38 @@ export class BenefitsService {
     return response.data;
   }
 
-  async getBenefitsById(id: string): Promise<any> {
-    const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.strapiToken}`,
+  async getBenefitsById(id: string, source: string = 'function'): Promise<any> {
+    try {
+      const response = await this.httpService.axiosRef.get(
+        `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.strapiToken}`,
+          },
         },
-      },
-    );
+      );
 
-    return response.data;
+      if (source === 'api') {
+        return response.data;
+      }
+
+      return response;
+    } catch (error) {
+      if (error.isAxiosError) {
+        // Handle AxiosError and rethrow as HttpException
+        throw new HttpException(
+          error.response?.data?.message ?? 'Benefit not found',
+          error.response?.status ?? HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Handle other errors
+      throw new HttpException(
+        error.message ?? 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
@@ -211,7 +233,7 @@ export class BenefitsService {
     try {
       const benefitId = selectDto.message.order.items[0].id;
 
-      // Fetch benefit data from the strapi
+      // Fetch benefit data from the Strapi API
       const benefitData = await this.getBenefitsById(benefitId);
 
       let mappedResponse;
@@ -261,6 +283,11 @@ export class BenefitsService {
       };
       return selectDto;
     } catch (error) {
+      if (error instanceof HttpException) {
+        // Re-throw the HttpException to propagate the correct status code
+        throw error;
+      }
+
       console.error('Error in handleInit:', error);
       throw new InternalServerErrorException('Failed to initialize benefit');
     }
