@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-
+import { generateRandomString } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +14,11 @@ export interface BenefitDetail {
   documentId: string;
   title: string;
 }
+
+type ApplicationData = Record<string, any>;
+type BenefitDefinition = {
+  calculationRules: any[];
+};
 
 @Injectable()
 export class ApplicationsService {
@@ -42,7 +47,7 @@ export class ApplicationsService {
     }
     const benefitId = data.benefitId;
     const customerId = uuidv4();
-    const bapId = data.bapId || data.bapid || data.bapID || null;
+    const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
     const status = 'pending';
 
     // Save application (normal fields as applicationData)
@@ -66,23 +71,27 @@ export class ApplicationsService {
     // Process base64 fields
     const applicationFiles: ApplicationFiles[] = [];
     for (const { key, value } of base64Fields) {
-      // Remove the 'base64,' prefix from the value to get the actual base64 content
-      const base64Content = value.replace(/^base64,/, '');
+      // A - Process base64 fields for uploads
+      // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
+      const randomBytes = generateRandomString(); // Generate a secure random string
+      let filename = `${applicationId}_${key}_${Date.now()}_${randomBytes}.json`;
 
-      // Generate a unique filename using applicationId, key, timestamp, and a random number
-      let filename = `${applicationId}_${key}_${Date.now()}_${Math.floor(Math.random() * 10000)}.json`;
-
-      // Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
+      // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
       filename = filename
-        .replace(/[^a-zA-Z0-9-_\.]/g, '') // keep alphanumeric, dash, underscore, dot
+        .replace(/[^a-zA-Z0-9-_.]/g, '') // keep alphanumeric, dash, underscore, dot
         .replace(/\s+/g, '') // remove spaces
         .toLowerCase();
-
       const filePath = path.join(uploadsDir, filename);
-      const decodedContent = Buffer.from(base64Content, 'base64');
-      fs.writeFileSync(filePath, decodedContent);
 
-      // Save ApplicationFiles record
+      // A2.1 - Remove base64, from start of the content
+      const base64Content = value.replace(/^base64,/, '');
+      // A2.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
+      const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
+      // A2.3 - URL-decode to get the original content
+      const decodedContent = decodeURIComponent(urlEncoded);
+      fs.writeFileSync(filePath, decodedContent, 'utf-8');
+
+      // B - Save ApplicationFiles record
       const appFile = await this.prisma.applicationFiles.create({
         data: {
           storage: 'local',
@@ -113,17 +122,17 @@ export class ApplicationsService {
     let benefit: BenefitDetail | null = null;
     try {
       const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
-       benefit = {
+      benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
         title: benefitDetail?.data?.data?.title,
       }
-     
+
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
-    }     
+    }
 
-    return {applications, benefit};
+    return { applications, benefit };
   }
 
   // Get a single application by ID
@@ -142,17 +151,13 @@ export class ApplicationsService {
     if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
       application.applicationFiles = application.applicationFiles.map(file => {
         if (file.filePath) {
-          try {
-            const absPath = path.isAbsolute(file.filePath)
-              ? file.filePath
-              : path.join(process.cwd(), file.filePath);
-            if (fs.existsSync(absPath)) {
-              const fileBuffer = fs.readFileSync(absPath);
-              const base64Content = fileBuffer.toString('base64');
-              return { ...file, fileContent: base64Content };
-            }
-          } catch (err) {
-            // Optionally log error
+          const absPath = path.isAbsolute(file.filePath)
+            ? file.filePath
+            : path.join(process.cwd(), file.filePath);
+          if (fs.existsSync(absPath)) {
+            const fileBuffer = fs.readFileSync(absPath);
+            const base64Content = fileBuffer.toString('base64');
+            return { ...file, fileContent: base64Content };
           }
         }
         return { ...file, fileContent: null };
@@ -242,90 +247,280 @@ export class ApplicationsService {
 
   }
 
-  
+
   async exportApplicationsCsv(benefitId: string, reportType: string): Promise<string> {
-    if (!benefitId || !reportType) {
-      throw new BadRequestException('benefitId and type are required');
-    }
 
-    const reports = reportsConfig;
-
-    // Get report config
-    const reportConfig = reports[reportType];
+    const reportConfig = reportsConfig[reportType];
     if (!reportConfig) {
       throw new BadRequestException('Invalid report type');
     }
-    const autoGenerateFields = reportConfig.autoGenerateFields || [];
-    const applicationDataColumnDataFields = reportConfig.applicationDataColumnDataFields || [];
-    const applicationTableDataFields = reportConfig.applicationTableDataFields || [];
 
-    let applications: any[] = [];
+    const {
+      autoGenerateFields = [],
+      applicationDataColumnDataFields = [],
+      calculatedAmountColumnDataFields = [],
+      applicationTableDataFields = []
+    } = reportConfig;
+
+    const applications = await this.fetchApplications(benefitId);
+
+    const finalAppDataFields = this.resolveDynamicFields(
+      applications,
+      applicationDataColumnDataFields,
+      'applicationData'
+    );
+
+    const finalCalcAmountFields = this.resolveDynamicFields(
+      applications,
+      calculatedAmountColumnDataFields,
+      'calculatedAmount',
+      ['totalPayout']
+    );
+
+    const headerFields = [
+      ...autoGenerateFields,
+      ...finalAppDataFields,
+      ...finalCalcAmountFields,
+      ...applicationTableDataFields
+    ];
+
+    const csvRows = [headerFields.join(',')];
+
+    for (const [index, app] of applications.entries()) {
+      const row = [
+        ...this.generateAutoFields(autoGenerateFields, index),
+        ...this.generateAppDataFields(app, finalAppDataFields),
+        ...this.generateCalcAmountFields(app, finalCalcAmountFields),
+        ...this.generateAppTableFields(app, applicationTableDataFields)
+      ];
+      csvRows.push(this.escapeCsvRow(row));
+    }
+
+    return csvRows.join('\n');
+  }
+
+  // --- Helper Methods ---
+
+  private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
-      applications = await this.prisma.applications.findMany({
-        where: { benefitId: benefitId },
-      });
+      return await this.prisma.applications.findMany({
+				where: {
+					benefitId,
+					// status: {
+					// 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+					// },
+				},
+			});
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
-
-    const generateCsvRows = (applications: any[], headerFields: string[], appDataFields: string[]) => {
-      // Helper function to generate CSV rows
-      const csvRows = [headerFields.join(',')];
-      
-      for (const [i, app] of applications.entries()) {
-        const row: (string | number)[] = [];
-        
-        // Auto-generate fields
-        for (const field of autoGenerateFields) {
-          if (field === 'serialNumber') {
-            row.push((i + 1).toString());
-          } else {
-            row.push('');
-          }
-        }
-        
-        // Application data fields
-        for (const field of appDataFields) {
-          row.push(app.applicationData && app.applicationData[field] !== undefined 
-            ? app.applicationData[field] 
-            : '');
-        }
-        
-        // Application table data fields
-        for (const field of applicationTableDataFields) {
-          if (field === 'amount') {
-            row.push(app.finalAmount !== undefined ? app.finalAmount : '');
-          } else {
-            row.push(app[field] !== undefined ? app[field] : '');
-          }
-        }
-        
-        csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
-      }
-      
-      return csvRows.join('\n');
-    };
-
-    let dynamicAppDataFields: string[] = [];
-    
-    if (applicationDataColumnDataFields.length === 1 && applicationDataColumnDataFields[0] === '*') {
-      // Fetch applications first to get all keys
-      const fieldSet = new Set<string>();
-      for (const app of applications) {
-        if (app.applicationData && typeof app.applicationData === 'object') {
-          Object.keys(app.applicationData).forEach(key => fieldSet.add(key));
-        }
-      }
-      dynamicAppDataFields = Array.from(fieldSet);
-
-      const headerFields = [...autoGenerateFields, ...dynamicAppDataFields, ...applicationTableDataFields];
-      return generateCsvRows(applications, headerFields, dynamicAppDataFields);
-    }
-
-    const headerFields = [...autoGenerateFields, ...applicationDataColumnDataFields, ...applicationTableDataFields];
-    return generateCsvRows(applications, headerFields, applicationDataColumnDataFields);
   }
 
+private resolveDynamicFields(
+  apps: any[],
+  fields: string[],
+  source: 'applicationData' | 'calculatedAmount',
+  excludeFields: string[] = []
+): string[] {
+  if (!Array.isArray(fields)) return [];
 
+  const isWildcard = fields.length === 1 && fields[0] === '*';
 
+  const keySet = new Set<string>();
+  for (const app of apps) {
+    const sourceData = app[source];
+    if (sourceData && typeof sourceData === 'object') {
+      Object.keys(sourceData).forEach(key => {
+        if (!excludeFields.includes(key)) {
+          keySet.add(key);
+        }
+      });
+    }
+  }
+
+  if (isWildcard) {
+    return Array.from(keySet).sort((a, b) => a.localeCompare(b));
+  }
+
+  return fields.filter(field => !excludeFields.includes(field));
 }
+
+
+  private generateAutoFields(fields: string[], index: number): (string | number)[] {
+    return fields.map(field => field === 'serialNumber' ? index + 1 : '');
+  }
+
+  private generateAppDataFields(app: any, fields: string[]): string[] {
+    return fields.map(field => {
+      if (field === 'otr') return app.applicationData?.nspOtr ?? '';
+      if (field === 'aadhaar') return app.applicationData?.aadhaar?.slice(-4) ?? '';
+      return app.applicationData?.[field] ?? '';
+    });
+  }
+
+  private generateCalcAmountFields(app: any, fields: string[]): any[] {
+  const calcAmountData = app.calculatedAmount ?? {};
+  return fields.map(field => {
+    const value = calcAmountData[field];
+    return value ?? '';
+  });
+}
+
+  private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
+    return fields.map(field => {
+      if (field === 'amount') return app.finalAmount ?? '';
+      if (field === 'applicationId') return app.id ?? '';
+      return app[field] ?? '';
+    });
+  }
+
+  private escapeCsvRow(row: (string | number)[]): string {
+    return row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+  }
+
+  // Get a single application by ID
+  async calculateBenefit(id: number) {
+    const application = await this.prisma.applications.findUnique({
+      where: { id }
+    });
+
+    if (!application) {
+      throw new NotFoundException('Applications not found');
+    }
+
+    let benefitDetails;
+    try {
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+    } catch (error) {
+      throw new NotFoundException('Benefit not found');
+    }
+   
+    
+    let amounts;
+    amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
+    try{
+        await this.update(id, {
+          calculatedAmount: amounts,
+          finalAmount: `${amounts?.totalPayout}`,
+          calculationsProcessedAt: new Date()
+        })
+    }catch(err){
+      console.error(`Error updating benefit details for application: ${id}`, err.message);
+    }
+    return amounts;
+  }
+
+  /**
+  * Main function to calculate benefit payout.
+  */
+  async doBenefitCalculations(applicationData: any, benefitDefinition: any) {
+    const output: Record<string, number> = {};
+    let total = 0;
+
+    for (const rule of benefitDefinition.benefitCalculationRules ?? []) {
+      let amount = 0;
+
+      switch (rule.type) {
+        case "fixed":
+          amount = rule.fixedValue ?? 0;
+          break;
+
+        case "lookup": {
+          const inputVal = applicationData[rule.inputFields[0]];
+          const found = rule.lookupTable.find((row: any) => row.match === inputVal);
+          amount = found ? found.amount : 0;
+          break;
+        }
+
+        case "conditional": {
+          for (const condition of rule.conditions) {
+            const matches = condition.ifExpr
+              ? this.evaluateIfExpr(condition.ifExpr, applicationData)
+              : Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
+
+            if (matches) {
+              if (condition.then.amount === "value") {
+                amount = Number(applicationData[rule.inputFields[0]]) || 0;
+              } else {
+                amount = Number(condition.then.amount) || 0;
+              }
+              break;
+            }
+          }
+          break;
+        }
+
+
+        case "formula":
+          amount = this.evaluateFormula(rule.formula, applicationData);
+          break;
+
+        default:
+          console.warn(`Unsupported rule type: ${rule.type}`);
+          break;
+      }
+
+      output[rule.outputField] = amount;
+      total += amount;
+    }
+
+    output.totalPayout = total;
+    return output;
+  }
+
+  /**
+ * Very basic and safe math formula evaluator (supports + - * / and variables).
+ */
+  evaluateFormula(formula: string, context: ApplicationData): number {
+    try {
+      // Replace variable names in the formula with actual values
+      const safeExpr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
+        return typeof context[match] !== "undefined" ? context[match] : "0";
+      });
+
+      // Only allow safe characters
+      if (!/^[\d\s+\-*/().]+$/.test(safeExpr)) throw new Error("Unsafe formula");
+
+      return Function(`"use strict"; return (${safeExpr})`)(); // evaluated safely
+    } catch (err) {
+      console.error("Formula evaluation error:", err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Limited expression evaluator supporting basic comparison logic.
+   */
+  evaluateIfExpr(expr: string, context: ApplicationData): boolean {
+    try {
+      // Basic parser for comparison operators
+      const comparisons = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g);
+
+      if (!comparisons) return false;
+
+      return comparisons.every(part => {
+        const [, key, op, rawVal] = part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
+        let actual = context[key];
+        let expected: any = rawVal;
+
+        if (expected === "true") expected = true;
+        else if (expected === "false") expected = false;
+        else if (!isNaN(Number(expected))) expected = Number(expected);
+        else expected = expected.replace(/^['"]|['"]$/g, "");
+
+        switch (op) {
+          case "===": return actual === expected;
+          case "!==": return actual !== expected;
+          case ">": return actual > expected;
+          case "<": return actual < expected;
+          case ">=": return actual >= expected;
+          case "<=": return actual <= expected;
+          default: return false;
+        }
+      });
+    } catch (err) {
+      console.error("Expression evaluation error:", err.message);
+      return false;
+    }
+  }
+};

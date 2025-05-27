@@ -1,5 +1,3 @@
-import { ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
-
 export const ApplicationsApiDocs = {
   create: {
     operation: {
@@ -237,6 +235,37 @@ export const ApplicationsApiDocs = {
       badRequest: {
         status: 400,
         description: 'Bad Request - Status is required'
+      }
+    }
+  },
+
+  calculateBenefit: {
+    operation: {
+      summary: 'Calculate Benefit Amount',
+      description: 'Calculate the benefit amount for a specific application based on its criteria and rules.',
+    },
+    param: {
+      name: 'id',
+      description: 'Application ID',
+      example: 1
+    },
+    responses: {
+      success: {
+        status: 200,
+        description: 'Benefit amount calculated successfully',
+        schema: {
+          example: {
+            tuitionAdminReimbursement: 10000,
+            disabilityAllowance: 4000,
+            maintenanceAllowanceTotal: 19200,
+            bookAndStationaryGrantTotal: 1500,
+            totalPayout: 34700
+          }
+        }
+      },
+      notFound: {
+        status: 404,
+        description: 'Application not found'
       }
     }
   }

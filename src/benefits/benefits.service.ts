@@ -11,7 +11,7 @@ import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { titleCase } from 'src/common/util';
+import { generateRandomString, titleCase } from 'src/common/util';
 import { PrismaService } from '../prisma.service';
 import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
@@ -31,20 +31,20 @@ export class BenefitsService {
   private bapId: string;
   private bapUri: string;
   private readonly urlExtension: string =
-    '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*';
+    '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*&populate[benefitCalculationRules]=*';
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => ApplicationsService))
     private readonly applicationsService: ApplicationsService,
-    private prisma: PrismaService,
+    private readonly prisma: PrismaService,
   ) {
-    this.strapiUrl = this.configService.get('STRAPI_URL') || '';
-    this.strapiToken = this.configService.get('STRAPI_TOKEN') || '';
-    this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') || '';
-    this.bppId = this.configService.get('BPP_ID') || '';
-    this.bppUri = this.configService.get('BPP_URI') || '';
+    this.strapiUrl = this.configService.get('STRAPI_URL') ?? '';
+    this.strapiToken = this.configService.get('STRAPI_TOKEN') ?? '';
+    this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') ?? '';
+    this.bppId = this.configService.get('BPP_ID') ?? '';
+    this.bppUri = this.configService.get('BPP_URI') ?? '';
   }
 
   onModuleInit() {
@@ -62,11 +62,11 @@ export class BenefitsService {
   }
 
   async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
-    const page = body?.page || '1';
-    const pageSize = body?.pageSize || '100';
-    const sort = body?.sort || 'createdAt:desc';
-    const locale = body?.locale || 'en';
-    const filters = body?.filters || {};
+    const page = body?.page ?? '1';
+    const pageSize = body?.pageSize ?? '100';
+    const sort = body?.sort ?? 'createdAt:desc';
+    const locale = body?.locale ?? 'en';
+    const filters = body?.filters ?? {};
 
     const queryParams = {
       page,
@@ -87,7 +87,7 @@ export class BenefitsService {
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: req.headers['authorization'] || req.headers['Authorization'],
+      Authorization: req.headers['authorization'] ?? req.headers['Authorization'],
     };
 
     const response = await this.httpService.axiosRef.get(url, {
@@ -117,9 +117,7 @@ export class BenefitsService {
             }
           }
 
-          if (!benefitApplications) {
-            benefitApplications = [];
-          }
+          benefitApplications ??= [];
 
           // Enrich the benefit data with application details like application count, successful and failed applications count
           return {
@@ -246,7 +244,7 @@ export class BenefitsService {
       };
 
       const { id, descriptor, categories, locations, items, rateable }: any =
-        mappedResponse?.message.catalog.providers[0];
+        mappedResponse?.message.catalog.providers?.[0] ?? {};
 
       items[0].xinput = xinput;
 
@@ -287,20 +285,24 @@ export class BenefitsService {
       }
 
       // Generate order ID
-      const orderId: string = benefit?.orderId ? benefit.orderId : `TLEXP_${this.generateRandomString()}_${Date.now()}`;  
+      const orderId: string = benefit?.orderId ?? `TLEXP_${generateRandomString().toUpperCase()}_${Date.now()}`;
 
       // Update customer details
       const orderDetails = await this.applicationsService.update(Number(applicationId), { orderId });
 
-      const { id, descriptor, categories, locations, items, rateable }: any =
-        mappedResponse?.message.catalog.providers[0];
+      if (!orderDetails?.orderId) {
+        throw new BadRequestException('Failed to update order details');
+      }
+
+      const { id, descriptor, locations, items, rateable }: any =
+        mappedResponse?.message.catalog.providers[0] ?? {};
 
       confirmData["message"] = {
         "order": {
           ...confirmDto.message.order,
           provider: { id, descriptor, rateable, locations, },
           items,
-          id: orderDetails.orderId || "",
+          id: orderDetails.orderId ?? "",
         }
       };
 
@@ -341,16 +343,23 @@ export class BenefitsService {
 
     // Extract status from application data and add it to benefit data
     const status = application.status.toUpperCase();
-    const statusCode = status === 'APPROVED' ? {
-      "code": "APPLICATION-APPROVED",
-      "name": "Application Approved"
-    } : status === 'REJECTED' ? {
-      "code": "APPLICATION-REJECTED",
-      "name": "Application Rejected"
-    } : {
-      "code": "APPLICATION-" + status, // from db 
-      "name": "Application " + titleCase(application.status)
-    };
+    let statusCode;
+    if (status === 'APPROVED') {
+      statusCode = {
+        "code": "APPLICATION-APPROVED",
+        "name": "Application Approved"
+      };
+    } else if (status === 'REJECTED') {
+      statusCode = {
+        "code": "APPLICATION-REJECTED",
+        "name": "Application Rejected"
+      };
+    } else {
+      statusCode = {
+        "code": "APPLICATION-" + status, // from db 
+        "name": "Application " + titleCase(application.status)
+      };
+    }
 
 
     // Prepare the status object
@@ -417,14 +426,14 @@ export class BenefitsService {
       quote: {
         price: {
           currency: 'INR',
-          value: (Math.floor(Math.random() * 20) * 10).toString(),
+          value: '123',
         },
         breakup: [
           {
             title: 'Tuition Fee',
             price: {
               currency: 'INR',
-              value: (Math.floor(Math.random() * 20) * 10).toString(),
+              value: '123',
             },
           }
         ]
@@ -438,8 +447,8 @@ export class BenefitsService {
       );
     }
 
-    const { id, descriptor, categories, locations, items, rateable }: any =
-      mappedResponse?.message.catalog.providers[0];
+    const { id, descriptor, items, rateable }: any =
+      mappedResponse?.message.catalog.providers?.[0] ?? { id: null, descriptor: null, items: [], rateable: false };
 
     // Construct the final response
     statusData["message"] = {
@@ -457,10 +466,6 @@ export class BenefitsService {
     };
 
     return statusData;
-  }
-
-  private generateRandomString(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
   // Function to check if the BAP ID and URI are valid
@@ -481,7 +486,6 @@ export class BenefitsService {
     const items = await Promise.all(
       apiResponseArray.map(async (benefit) => {
         const {
-          id,
           title,
           longDescription,
           applicationOpenDate,
@@ -568,7 +572,7 @@ export class BenefitsService {
               id: 'PROVIDER_UNIFIED',
               descriptor: {
                 name:
-                  firstScholarship?.providingEntity?.name || 'Unknown Provider',
+                  firstScholarship?.providingEntity?.name ?? 'Unknown Provider',
                 short_desc: 'Multiple scholarships offered',
                 images: firstScholarship?.imageUrl
                   ? [{ url: firstScholarship.imageUrl }]
@@ -614,7 +618,7 @@ export class BenefitsService {
   async calculateTotalBenefitValue(benefits) {
     let total = 0;
     benefits.forEach((benefit) => {
-      const matches = benefit.description.match(/\₹([\d,]+)/g);
+      const matches = benefit.description.match(/₹([\d,]+)/g);
       if (matches) {
         matches.forEach((amount) => {
           total += parseInt(amount.replace(/[₹,]/g, ''), 10);

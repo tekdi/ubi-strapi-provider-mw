@@ -9,9 +9,11 @@ import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma.service';
 import { VerificationsModule } from './verifications/verifications.module';
-
+import { ScheduleModule } from '@nestjs/schedule';
+import { ApplicationStatusUpdate } from './applications/crons/calculate-benefit-amount';
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot(),
     BenefitsModule,
     ApplicationFilesModule,
@@ -23,6 +25,7 @@ import { VerificationsModule } from './verifications/verifications.module';
   providers: [
     AppService,
     PrismaService,
+    ApplicationStatusUpdate
   ],
 })
 export class AppModule {

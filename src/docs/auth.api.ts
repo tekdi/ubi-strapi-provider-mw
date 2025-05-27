@@ -1,5 +1,3 @@
-import { ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-
 export const AuthApiDocs = {
   login: {
     operation: {
@@ -11,7 +9,7 @@ export const AuthApiDocs = {
       schema: {
         example: {
           email: 'john.doe@example.com',
-          password: 'securepassword123'
+          password: 'securepassword123'  //NOSONAR 
         }
       }
     },

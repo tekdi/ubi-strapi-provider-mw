@@ -6,7 +6,13 @@
 		"applicationDataColumnDataFields": [
 			"*"
 		],
+		"calculatedAmountColumnDataFields":[
+			"*"
+		],
 		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -22,6 +28,9 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
 			"amount"
 		]
 	},
@@ -37,6 +46,58 @@
 			"bankIfscCode"
 		],
 		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
+			"amount"
+		]
+	},
+	"de_duplication_nsp":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr"
+		],
+		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
+			"amount"
+		]
+	},
+	"de_duplication_alimco":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"udid",
+			"aadhaar"
+		],
+		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
+			"amount"
+		]
+	},
+	"benefit_amounts":{
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr",
+			"udid",
+			"disabilityType",
+			"studentType"
+		],
+		"calculatedAmountColumnDataFields": [
+			"*"
+		],
+		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
 			"amount"
 		]
 	}

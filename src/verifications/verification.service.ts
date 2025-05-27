@@ -10,7 +10,7 @@ export class VerificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly httpService: HttpService
-  ) {}
+  ) { }
 
   async verifyApplicationVcs(applicationId: string): Promise<{
     isSuccess: boolean;
@@ -88,10 +88,9 @@ export class VerificationService {
 
           const isValid = response?.data?.success ?? false;
           const message = isValid
-            ? response.data.message || 'Credential verified successfully.'
-            : `${response.data.message || 'Verification failed.'} Errors: ${
-                (response.data.errors?.map((err: any) => err.error) || ['Unknown error']).join(', ')
-              }`;
+            ? response.data.message ?? 'Credential verified successfully.'
+            : `${response.data.message ?? 'Verification failed.'} Errors: ${(response.data.errors?.map((err: any) => err.error) ?? ['Unknown error']).join(', ')
+            }`;
 
           verificationResults.push({
             id: file.id,
@@ -106,7 +105,7 @@ export class VerificationService {
               verificationStatus: {
                 status: isValid ? 'Verified' : 'Unverified',
                 ...(isValid ? {} : {
-                  verificationErrors: response.data.errors?.map((err: any) => err.error) || ['Unknown error'],
+                  verificationErrors: response.data.errors?.map((err: any) => err.error) ?? ['Unknown error'],
                 }),
               },
             },
@@ -149,18 +148,31 @@ export class VerificationService {
     const allSuccessful = successCount === total;
     const partialSuccess = successCount > 0 && successCount < total;
 
-    const status = allSuccessful
-      ? 'verified'
-      : partialSuccess
-      ? 'partially_verified'
-      : 'unverified';
+    let status: 'verified' | 'partially_verified' | 'unverified';
+    if (allSuccessful) {
+      status = 'verified';
+    } else if (partialSuccess) {
+      status = 'partially_verified';
+    } else {
+      status = 'unverified';
+    }
 
-    const code = allSuccessful ? 200 : partialSuccess ? 207 : 422;
-    const message = allSuccessful
-      ? 'Verification completed successfully'
-      : partialSuccess
-      ? 'Verification completed with some errors'
-      : 'Verification failed';
+    let code: number;
+    if (allSuccessful) {
+      code = 200;
+    } else if (partialSuccess) {
+      code = 207;
+    } else {
+      code = 422;
+    }
+    let message: string;
+    if (allSuccessful) {
+      message = 'Verification completed successfully';
+    } else if (partialSuccess) {
+      message = 'Verification completed with some errors';
+    } else {
+      message = 'Verification failed';
+    }
 
     return this.buildResponse(allSuccessful, code, message, applicationId, files, status);
   }
