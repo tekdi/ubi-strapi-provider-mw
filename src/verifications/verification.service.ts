@@ -12,16 +12,26 @@ export class VerificationService {
     private readonly httpService: HttpService
   ) { }
 
-  async verifyApplicationVcs(applicationId: string): Promise<{
+  async verifyApplicationVcs(payload: { applicationId: string, applicationFileIds?: string[] }): Promise<{
     isSuccess: boolean;
     code: number;
     response: VerifyApplicationVcsResponseDto;
   }> {
+    const { applicationId, applicationFileIds } = payload;
+
     if (!applicationId) {
       return this.buildResponse(false, 400, 'Application ID is required', applicationId, [], 'unverified');
     }
 
-    const applicationFiles = await this.getApplicationFilesByApplicationId(Number(applicationId));
+    let applicationFiles;
+    if (applicationFileIds && applicationFileIds.length > 0) {
+      // Fetch only the specified application files
+      applicationFiles = await this.getApplicationFilesByIds(applicationFileIds.map(id => Number(id)), Number(applicationId));
+    } else {
+      // Fetch all files for the application
+      applicationFiles = await this.getApplicationFilesByApplicationId(Number(applicationId));
+    }
+
     if (!applicationFiles || applicationFiles.length === 0) {
       return this.buildResponse(false, 404, 'No application files found for the given application ID', applicationId, [], 'unverified');
     }
@@ -29,6 +39,16 @@ export class VerificationService {
     const apiUrl = process.env.VERIFICATION_SERVICE_URL;
     if (!apiUrl) {
       return this.buildResponse(false, 500, 'VERIFICATION_SERVICE_URL is not defined in environment variables', applicationId, [], 'unverified');
+    }
+
+    const vcVerifierName = process.env.VC_VERIFIER_NAME;
+    if (!vcVerifierName) {
+      return this.buildResponse(false, 500, 'VC_VERIFIER_NAME is not defined in environment variables', applicationId, [], 'unverified');
+    }
+
+    const verificationAPIUrl = process.env.VC_VERIFICATION_API_URL;
+    if (!verificationAPIUrl) {
+      return this.buildResponse(false, 500, 'VC_VERIFICATION_API_URL is not defined in environment variables', applicationId, [], 'unverified');
     }
 
     const verificationResults: {
@@ -83,7 +103,14 @@ export class VerificationService {
           }
 
           const response = await lastValueFrom(
-            this.httpService.post(apiUrl, { credential: parsedData })
+            this.httpService.post(apiUrl, {
+              credential: parsedData,
+              "config": {
+                "method": "online",
+                "verifierName": vcVerifierName,
+                "apiEndpoint": verificationAPIUrl,
+              }
+            })
           );
 
           const isValid = response?.data?.success ?? false;
@@ -105,7 +132,12 @@ export class VerificationService {
               verificationStatus: {
                 status: isValid ? 'Verified' : 'Unverified',
                 ...(isValid ? {} : {
-                  verificationErrors: response.data.errors?.map((err: any) => err.error) ?? ['Unknown error'],
+                  verificationErrors: response.data.errors
+                    ? response.data.errors.map((err: any) => ({
+                        error: err.error,
+                        raw: err.raw,
+                      }))
+                    : [{ error: 'Unknown error', raw: null }],
                 }),
               },
             },
@@ -118,12 +150,23 @@ export class VerificationService {
             message: `Error: ${error.message}`,
           });
 
+          // Try to extract error response from API if available
+          let verificationErrors;
+          if (error?.response?.data?.errors) {
+            verificationErrors = error.response.data.errors.map((err: any) => ({
+              error: err.error,
+              raw: err.raw,
+            }));
+          } else {
+            verificationErrors = [{ error: error.message, raw: error?.response?.data ?? null }];
+          }
+
           await this.prisma.applicationFiles.update({
             where: { id: file.id },
             data: {
               verificationStatus: {
                 status: 'Unverified',
-                verificationErrors: [error.message],
+                verificationErrors,
               },
             },
           });
@@ -180,6 +223,15 @@ export class VerificationService {
   private async getApplicationFilesByApplicationId(applicationId: number) {
     return this.prisma.applicationFiles.findMany({
       where: { applicationId },
+    });
+  }
+
+  private async getApplicationFilesByIds(applicationFileIds: number[], applicationId: number) {
+    return this.prisma.applicationFiles.findMany({
+      where: {
+        id: { in: applicationFileIds },
+        applicationId,
+      },
     });
   }
 
