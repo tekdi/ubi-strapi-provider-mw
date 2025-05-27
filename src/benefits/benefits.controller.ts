@@ -35,7 +35,7 @@ export class BenefitsController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string): any {
-    return this.benefitsService.getBenefitsById(id, 'api');
+    return this.benefitsService.getBenefitsById(id);
   }
 
   @Post('search')
