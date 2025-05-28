@@ -39,6 +39,7 @@
 			"serialNumber"
 		],
 		"applicationDataColumnDataFields": [
+			"bankAccountHolderName",
 			"bankAccountNumber",
 			"bankName",
 			"bankAddress",
@@ -48,8 +49,8 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
-			"status",
-			"amount"
+			"amount",
+			"status"
 		]
 	},
 	"de_duplication_nsp":{
@@ -86,6 +87,8 @@
 			"serialNumber"
 		],
 		"applicationDataColumnDataFields": [
+			"schemeName",
+			"applicantName",
 			"otr",
 			"udid",
 			"disabilityType",
@@ -97,8 +100,8 @@
 		"applicationTableDataFields": [
 			"applicationId",
 			"orderId",
-			"status",
-			"amount"
+			"amount",
+			"status"
 		]
 	}
 }

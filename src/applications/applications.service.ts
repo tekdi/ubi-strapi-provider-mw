@@ -263,15 +263,20 @@ export class ApplicationsService {
     } = reportConfig;
 
     const applications = await this.fetchApplications(benefitId);
-
+    const benefitDetail = await this.benefitsService.getBenefitsById(`${benefitId}`);
+    const schemeName = benefitDetail?.data?.data?.title ?? '';
+    const applicationsWithScheme = applications.map(app => ({
+      ...app,
+      schemeName,
+      }));
     const finalAppDataFields = this.resolveDynamicFields(
-      applications,
+      applicationsWithScheme,
       applicationDataColumnDataFields,
       'applicationData'
     );
 
     const finalCalcAmountFields = this.resolveDynamicFields(
-      applications,
+      applicationsWithScheme,
       calculatedAmountColumnDataFields,
       'calculatedAmount',
       ['totalPayout']
@@ -286,7 +291,7 @@ export class ApplicationsService {
 
     const csvRows = [headerFields.join(',')];
 
-    for (const [index, app] of applications.entries()) {
+    for (const [index, app] of applicationsWithScheme.entries()) {
       const row = [
         ...this.generateAutoFields(autoGenerateFields, index),
         ...this.generateAppDataFields(app, finalAppDataFields),
@@ -352,6 +357,8 @@ private resolveDynamicFields(
 
   private generateAppDataFields(app: any, fields: string[]): string[] {
     return fields.map(field => {
+      if (field === 'schemeName') return app.schemeName ?? '';
+      if (field === 'applicantName') return `${app.applicationData?.firstName ?? ''} ${app.applicationData?.lastName ?? ''}`;
       if (field === 'otr') return app.applicationData?.nspOtr ?? '';
       if (field === 'aadhaar') return app.applicationData?.aadhaar?.slice(-4) ?? '';
       return app.applicationData?.[field] ?? '';
