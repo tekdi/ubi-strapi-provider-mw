@@ -25,7 +25,7 @@ import { StatusRequestDto } from './dto/status-request.dto';
 @Controller('benefits')
 
 export class BenefitsController {
-  constructor(private readonly benefitsService: BenefitsService) {}
+  constructor(private readonly benefitsService: BenefitsService) { }
 
   @ApiOperation({
     summary: 'Get Benefits by ID',
