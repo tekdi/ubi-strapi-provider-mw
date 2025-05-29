@@ -15,22 +15,22 @@ datasource db {
 }
 
 model Applications {
-  id               Int                @id @default(autoincrement())
-  benefitId        String
-  status           String
-  applicationData  Json // form fields saved as they are dynamic
-  customerId       String?
-  bapId            String?
-  calculatedAmount Json?
-  finalAmount      String?
-  orderId          String?
-  remark           String?
-  updatedBy        Int?
-  actionLog        Json?
-  calculationsProcessedAt      DateTime?
-  applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
-  createdAt        DateTime           @default(now()) // Automatically set on creation
-  updatedAt        DateTime           @updatedAt // Automatically updated on modification
+  id                      Int                @id @default(autoincrement())
+  benefitId               String
+  status                  String
+  applicationData         Json // form fields saved as they are dynamic
+  customerId              String?
+  bapId                   String?
+  calculatedAmount        Json?
+  finalAmount             String?
+  orderId                 String?
+  remark                  String?
+  updatedBy               Int?
+  actionLog               Json?
+  calculationsProcessedAt DateTime?
+  applicationFiles        ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
+  createdAt               DateTime           @default(now()) // Automatically set on creation
+  updatedAt               DateTime           @updatedAt // Automatically updated on modification
 }
 
 model ApplicationFiles {
@@ -58,4 +58,18 @@ model Users {
   blocked     Boolean   @default(false)
   createdAt   DateTime  @default(now()) // Automatically set on creation
   updatedAt   DateTime? @updatedAt // Automatically updated on modification
+}
+
+model Provider {
+  id               Int       @id @default(autoincrement()) // Primary key auto-generated
+  strapiId         Int       @unique // Changed from String to Int
+  strapidocumentId String    @unique // Unique field
+  name             String    @unique // Unique field
+  strapiCode       String    @unique // Unique field
+  strapiRole       String[]  // Array of strings to store multiple roles, can be empty
+  description      String    // Description field
+  createdAt        DateTime  @default(now()) // Automatically set on creation
+  updatedAt        DateTime  @updatedAt // Automatically updated on modification
+  publishedAt      DateTime? // Optional field for published timestamp
+  locale           String?   // Optional locale field
 }

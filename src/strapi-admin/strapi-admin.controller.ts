@@ -1,13 +1,19 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ApiBasicAuth } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 import { StrapiAdminService } from './strapi-admin.service';
-import { StrapiAdminLoginDto } from './dto/strapi-admin-login.dto';
+import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
 
 @Controller('strapi-admin')
 export class StrapiAdminController {
-  constructor(private readonly strapiAdminService: StrapiAdminService) {}
+  constructor(private readonly strapiAdminService: StrapiAdminService) { }
 
-  @Post('login')
-  async login(@Body() strapiAdminLoginDto: StrapiAdminLoginDto): Promise<any> {
-    return this.strapiAdminService.adminLogin(strapiAdminLoginDto);
+  @Post('roles')
+  // @UseGuards(AuthGuard)
+  @ApiBasicAuth('access-token')
+  async createRole(
+    @Body() strapiAdminProviderDto: StrapiAdminProviderDto,
+  ): Promise<any> {
+    return this.strapiAdminService.createRole(strapiAdminProviderDto);
   }
 }
