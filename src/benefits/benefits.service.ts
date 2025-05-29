@@ -10,7 +10,7 @@ import {
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
+import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.constants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRandomString, titleCase } from 'src/common/util';
