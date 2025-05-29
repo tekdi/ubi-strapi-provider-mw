@@ -42,7 +42,7 @@ model ApplicationFiles {
   application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
   createdAt          DateTime     @default(now()) // Automatically set on creation
   updatedAt          DateTime     @updatedAt // Automatically updated on modification
-  vcVerifierName     String?
+  vcProvider         String?
 }
 
 model Users {

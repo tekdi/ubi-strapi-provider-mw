@@ -106,19 +106,19 @@ export class VerificationService {
           }
 
           // Get verifier name from the file record, fallback to 'dhiway' if missing or empty
-          let vcVerifierName = file.vcVerifierName;
-          if (!vcVerifierName || typeof vcVerifierName !== 'string' || vcVerifierName.trim() === '') {
-            vcVerifierName = 'dhiway';
+          let vcProvider = file.vcProvider;
+          if (!vcProvider || typeof vcProvider !== 'string' || vcProvider.trim() === '') {
+            vcProvider = 'dhiway';
           }
 
           // Get API endpoint from the array mapping
-          const verificationAPIUrl = this.getVerifierApiUrl(vcVerifierName);
+          const verificationAPIUrl = this.getVerifierApiUrl(vcProvider);
           if (!verificationAPIUrl) {
             verificationResults.push({
               id: file.id,
               filePath: file.filePath,
               isValid: false,
-              message: `No API endpoint configured for verifier: ${vcVerifierName}`,
+              message: `No API endpoint configured for verifier: ${vcProvider}`,
             });
 
             await this.prisma.applicationFiles.update({
@@ -126,7 +126,7 @@ export class VerificationService {
               data: {
                 verificationStatus: {
                   status: 'Unverified',
-                  verificationErrors: [`No API endpoint configured for verifier: ${vcVerifierName}`],
+                  verificationErrors: [`No API endpoint configured for verifier: ${vcProvider}`],
                 },
               },
             });
@@ -138,7 +138,7 @@ export class VerificationService {
               credential: parsedData,
               "config": {
                 "method": "online",
-                "verifierName": vcVerifierName,
+                "verifierName": vcProvider,
                 "apiEndpoint": verificationAPIUrl,
               }
             })
