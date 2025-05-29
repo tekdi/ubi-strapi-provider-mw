@@ -1,8 +1,8 @@
-name: Deploy to DEV
+name: Deploy to UBA-DePWD-Pilot
 on:
   push:
     branches:
-      - main
+      - depwd-pilot
 jobs:
    Deploy_on_PILOT:
     runs-on: ubuntu-latest
