@@ -6,14 +6,17 @@ import { ApplicationsService } from '../applications.service';
 import { CronJob } from 'cron';
 @Injectable()
 export class ApplicationStatusUpdate {
-    private readonly strapiToken: string;
+    private readonly strapiToken: string | undefined;
     constructor(
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
         private readonly applicationsService: ApplicationsService,
         private readonly schedulerRegistry: SchedulerRegistry,
     ) {
-        this.strapiToken = this.configService.get('STRAPI_TOKEN') ?? '';
+        this.strapiToken = this.configService.get('STRAPI_TOKEN');
+        if (!this.strapiToken) {
+            throw new Error('STRAPI_TOKEN is not defined in the configuration');
+        }
     }
     onModuleInit() {
         const cronExpression = this.configService.get('BENEFIT_CALCULATIONS_CRON_TIME') ?? '*/30 * * * *';

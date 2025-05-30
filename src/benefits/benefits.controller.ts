@@ -10,6 +10,7 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BenefitsService } from './benefits.service';
@@ -19,6 +20,7 @@ import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
+import { getAuthToken } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
@@ -35,7 +37,7 @@ export class BenefitsController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string, @Req() req: Request): any {
-    const authorization = req.headers['authorization'] ?? req.headers['Authorization'];
+    const authorization = getAuthToken(req);
     return this.benefitsService.getBenefitsById(id, authorization);
   }
 
@@ -47,7 +49,7 @@ export class BenefitsController {
     description: 'Search for benefits based on the logged in provider user.',
   })
   searchBenefits(@Body() body: SearchBenefitsDto, @Req() req: Request): any {
-    const authorization = req.headers['authorization'] ?? req.headers['Authorization'];
+    const authorization = getAuthToken(req);
     return this.benefitsService.getBenefits(body, authorization);
   }
 

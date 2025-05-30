@@ -394,13 +394,11 @@ export class ApplicationsService {
       throw new NotFoundException('Applications not found');
     }
 
-    let benefitDetails;
-    try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
-    } catch (error) {
-      throw new NotFoundException('Benefit not found');
+    const benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
+   
+    if (!benefitDetails?.data?.data) {
+      throw new NotFoundException('Benefit details not found');
     }
-
 
     let amounts;
     amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
@@ -412,6 +410,7 @@ export class ApplicationsService {
       })
     } catch (err) {
       console.error(`Error updating benefit details for application: ${id}`, err.message);
+      throw new BadRequestException(`Failed to update benefit details for application ${id}`);
     }
     return amounts;
   }

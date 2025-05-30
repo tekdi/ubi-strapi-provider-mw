@@ -1,8 +1,10 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiBasicAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { StrapiAdminService } from './strapi-admin.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
+import { getAuthToken } from 'src/common/util';
 
 @Controller('strapi-admin')
 export class StrapiAdminController {
@@ -16,7 +18,7 @@ export class StrapiAdminController {
     @Req() req: Request,
     @Body() strapiAdminProviderDto: StrapiAdminProviderDto,
   ): Promise<any> {
-    const authorization = req.headers['authorization'] ?? req.headers['Authorization'];
+    const authorization = getAuthToken(req);
     return this.strapiAdminService.createRole(strapiAdminProviderDto, authorization);
   }
 }
