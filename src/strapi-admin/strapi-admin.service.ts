@@ -3,7 +3,7 @@ import { HttpException, HttpStatus, Injectable, InternalServerErrorException } f
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
-import { permissionsConfig } from './permissions.config';
+import permissionsConfig from './permissions.config.json';
 
 @Injectable()
 export class StrapiAdminService {
@@ -51,6 +51,7 @@ export class StrapiAdminService {
         permissions
       };
     } catch (error) {
+      console.error('Error creating role:', error);
       if (error.isAxiosError) {
         throw new HttpException(
           error.response?.data ?? 'Role creation failed',
@@ -66,80 +67,60 @@ export class StrapiAdminService {
 
   async addRole(name: string, description: string, authorization: string): Promise<any> {
     const rolesEndpoint = `${this.strapiUrl}/admin/roles`;
-    try {
-      const response = await this.httpService.axiosRef.post(
-        rolesEndpoint,
-        {
-          name: name,
-          description: description,
+
+    const response = await this.httpService.axiosRef.post(
+      rolesEndpoint,
+      {
+        name: name,
+        description: description,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authorization}`,
         },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'accept': 'application/json',
-            'authorization': `${authorization}`,
-          },
-        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to create role in Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
-
-      const responseData = response?.data?.data;
-      if (!responseData) {
-        throw new HttpException(
-          'Failed to create role in Strapi',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      return responseData;
-    } catch (error) {
-      if (error.isAxiosError) {
-        throw new HttpException(
-          error.response?.data ?? 'Role creation failed',
-          error.response?.status ?? HttpStatus.BAD_REQUEST,
-        );
-      }
-      throw new InternalServerErrorException(error.message ?? 'Internal server error');
     }
+
+    return responseData;
   }
 
   async addPermissionToRole(roleId: string, authorization: string): Promise<any> {
     const permissionsEndpoint = `${this.strapiUrl}/admin/roles/${roleId}/permissions`;
-    try {
-      const response = await this.httpService.axiosRef.put(
-        permissionsEndpoint,
-        permissionsConfig,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'accept': 'application/json',
-            'authorization': `${authorization}`,
-          },
+
+    const response = await this.httpService.axiosRef.put(
+      permissionsEndpoint,
+      permissionsConfig,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authorization}`,
         },
+      },
+    );
+
+    const permissionData = response?.data?.data;
+
+    if (!permissionData) {
+      throw new HttpException(
+        'Failed to add permissions to the role',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
-
-      const permissionData = response?.data?.data;
-
-      if (!permissionData) {
-        throw new HttpException(
-          'Failed to add permissions to the role',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      const permissions = permissionData.map((permission: any) => `${permission.action}`);
-
-      return permissions;
-
-    } catch (error) {
-      if (error.isAxiosError) {
-        throw new HttpException(
-          error.response?.data ?? 'Permission addition failed',
-          error.response?.status ?? HttpStatus.BAD_REQUEST,
-        );
-      }
-      throw new InternalServerErrorException(error.message ?? 'Internal server error');
     }
 
+    const permissions = permissionData.map((permission: any) => `${permission.action}`);
+
+    return permissions;
   }
 
   async createProvider(responseData: any): Promise<any> {
