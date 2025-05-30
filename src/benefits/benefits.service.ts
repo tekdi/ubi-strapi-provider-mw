@@ -141,7 +141,6 @@ export class BenefitsService {
   }
 
   async getBenefitsByIdStrapi(id: string, authorization?: string): Promise<any> {
-    console.log(authorization);
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
@@ -308,7 +307,7 @@ export class BenefitsService {
       const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
       // Fetch application data from db
-      const benefit = await this.applicationsService.findUnique(Number(applicationId));
+      const benefit = await this.applicationsService.findUniqueApplication(Number(applicationId));
       if (!benefit) {
         throw new BadRequestException('Application not found');
       }

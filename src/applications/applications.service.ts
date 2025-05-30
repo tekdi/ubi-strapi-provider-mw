@@ -181,7 +181,7 @@ export class ApplicationsService {
     return application;
   }
 
-  async findUnique(id: number) {
+  async findUniqueApplication(id: number) {
     return await this.prisma.applications.findUnique({
       where: { id },
       include: {
