@@ -1,0 +1,141 @@
+import { HttpService } from '@nestjs/axios';
+import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from 'src/prisma.service';
+import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
+import permissionsConfig from './permissions.config.json';
+
+@Injectable()
+export class StrapiAdminService {
+  private readonly strapiUrl: string;
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService
+  ) {
+    this.strapiUrl = this.configService.get<string>('STRAPI_URL') ?? '';
+  }
+
+  onModuleInit() {
+    if (
+      !this.strapiUrl.trim().length
+    ) {
+      throw new InternalServerErrorException(
+        'One or more required environment variables are missing or empty: STRAPI_URL',
+      );
+    }
+  }
+
+  async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, authorization: string): Promise<any> {
+    // Create a new role in Strapi, add it to Provider in Database and add permissions to it
+    try {
+      const role = await this.addRole(
+        strapiAdminProviderDto.name,
+        strapiAdminProviderDto.description,
+        authorization,
+      );
+
+      const roleData = await this.createProvider(role);
+
+      if (!roleData) {
+        throw new HttpException(
+          'Failed to create role in the database',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const permissions = await this.addPermissionToRole(role.id, authorization);
+
+      return {
+        ...roleData,
+        permissions
+      };
+    } catch (error) {
+      console.error('Error creating role:', error);
+      if (error.isAxiosError) {
+        throw new HttpException(
+          error.response?.data ?? 'Role creation failed',
+          error.response?.status ?? HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message ?? 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async addRole(name: string, description: string, authorization: string): Promise<any> {
+    const rolesEndpoint = `${this.strapiUrl}/admin/roles`;
+
+    const response = await this.httpService.axiosRef.post(
+      rolesEndpoint,
+      {
+        name: name,
+        description: description,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authorization}`,
+        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to create role in Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return responseData;
+  }
+
+  async addPermissionToRole(roleId: string, authorization: string): Promise<any> {
+    const permissionsEndpoint = `${this.strapiUrl}/admin/roles/${roleId}/permissions`;
+
+    const response = await this.httpService.axiosRef.put(
+      permissionsEndpoint,
+      permissionsConfig,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authorization}`,
+        },
+      },
+    );
+
+    const permissionData = response?.data?.data;
+
+    if (!permissionData) {
+      throw new HttpException(
+        'Failed to add permissions to the role',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const permissions = permissionData.map((permission: any) => `${permission.action}`);
+
+    return permissions;
+  }
+
+  async createProvider(responseData: any): Promise<any> {
+    // Create a new provider in the database
+    return await this.prisma.provider.create({
+      data: {
+        catalogManagerId: `${responseData.id}`,
+        catalogManagerDocumentId: responseData.documentId,
+        name: responseData.name,
+        description: responseData.description,
+        catalogManagerRole: [responseData.name],
+        catalogManagerCode: responseData.code,
+        locale: responseData.locale,
+        publishedAt: responseData.publishedAt,
+      }
+    })
+  }
+}

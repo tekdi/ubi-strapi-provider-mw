@@ -2,7 +2,7 @@ export const AuthApiDocs = {
   login: {
     operation: {
       summary: 'User Login',
-      description: 'Authenticate a user and return a JWT token.',
+      description: 'Authenticate an admin user and return a JWT token.',
     },
     body: {
       description: 'Login credentials',
