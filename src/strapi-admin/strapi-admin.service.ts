@@ -47,12 +47,12 @@ export class StrapiAdminService {
 
       const roleData = await this.prisma.provider.create({
         data: {
-          strapiId: responseData.id,
-          strapidocumentId: responseData.documentId,
+          catalogManagerId: `${responseData.id}`,
+          catalogManagerDocumentId: responseData.documentId,
           name: responseData.name,
           description: responseData.description,
-          strapiRole: [responseData.name],
-          strapiCode: responseData.code,
+          catalogManagerRole: [responseData.name],
+          catalogManagerCode: responseData.code,
           locale: responseData.locale,
           publishedAt: responseData.publishedAt,
         }
