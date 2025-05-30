@@ -97,7 +97,7 @@ export class VerificationService {
             throw parseError;
           }
 
-          const DEFAULT_VERIFIER = process.env.DEFAULT_VERIFIER_NAME?.trim() || 'dhiway';
+          const DEFAULT_VERIFIER = process.env.DEFAULT_VERIFIER_NAME?.trim() ?? 'dhiway';
           let vcProvider = file.vcProvider;
           if (!vcProvider || typeof vcProvider !== 'string' || vcProvider.trim() === '') {
             vcProvider = DEFAULT_VERIFIER;
