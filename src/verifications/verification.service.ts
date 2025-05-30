@@ -97,10 +97,10 @@ export class VerificationService {
             throw parseError;
           }
 
-          const DEFAULT_VERIFIER = process.env.DEFAULT_VERIFIER_NAME?.trim() ?? 'dhiway';
-          let vcProvider = file.vcProvider;
-          if (!vcProvider || typeof vcProvider !== 'string' || vcProvider.trim() === '') {
-            vcProvider = DEFAULT_VERIFIER;
+          const DEFAULT_ISSUER_NAME = process.env.DEFAULT_ISSUER_NAME?.trim() ?? 'dhiway';
+          let issuerName = file.issuerName;
+          if (!issuerName || typeof issuerName !== 'string' || issuerName.trim() === '') {
+            issuerName = DEFAULT_ISSUER_NAME;
           }
 
           const response = await lastValueFrom(
@@ -108,7 +108,7 @@ export class VerificationService {
               credential: parsedData,
               config: {
                 method: "online",
-                verifierName: vcProvider,
+                issuerName: issuerName,
               }
             })
           );

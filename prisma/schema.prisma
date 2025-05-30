@@ -40,9 +40,9 @@ model ApplicationFiles {
   verificationStatus Json?
   applicationId      Int
   application        Applications @relation(fields: [applicationId], references: [id], name: "ApplicationsToApplicationFiles")
+  issuerName         String?      // Name of the issuer (nullable)
   createdAt          DateTime     @default(now()) // Automatically set on creation
   updatedAt          DateTime     @updatedAt // Automatically updated on modification
-  vcProvider         String?
 }
 
 model Users {
