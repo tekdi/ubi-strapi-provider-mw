@@ -25,6 +25,11 @@ export class VerificationService {
 
     let applicationFiles;
     if (applicationFileIds && applicationFileIds.length > 0) {
+      // Validate that all IDs are valid numbers
+      const invalidIds = applicationFileIds.filter(id => isNaN(Number(id)));
+      if (invalidIds.length > 0) {
+          return this.buildResponse(false, 400, `Invalid file IDs provided: ${invalidIds.join(', ')}`, applicationId, [], 'unverified');
+      }
       // Fetch only the specified application files
       applicationFiles = await this.getApplicationFilesByIds(applicationFileIds.map(id => Number(id)), Number(applicationId));
     } else {
@@ -92,10 +97,10 @@ export class VerificationService {
             throw parseError;
           }
 
-          // Get verifier name from the file record, fallback to 'dhiway' if missing or empty
+          const DEFAULT_VERIFIER = process.env.DEFAULT_VERIFIER_NAME?.trim() || 'dhiway';
           let vcProvider = file.vcProvider;
           if (!vcProvider || typeof vcProvider !== 'string' || vcProvider.trim() === '') {
-            vcProvider = 'dhiway';
+            vcProvider = DEFAULT_VERIFIER;
           }
 
           const response = await lastValueFrom(
