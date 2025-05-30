@@ -12,19 +12,6 @@ export class VerificationService {
     private readonly httpService: HttpService
   ) { }
 
-  private get verifierApiUrlArray(): { name: string; url: string }[] {
-    try {
-      return JSON.parse(process.env.VC_VERIFIER_API_URL_MAP ?? '[]');
-    } catch {
-      return [];
-    }
-  }
-
-  private getVerifierApiUrl(name: string): string | undefined {
-    const found = this.verifierApiUrlArray.find(item => item.name === name);
-    return found?.url;
-  }
-
   async verifyApplicationVcs(payload: { applicationId: string, applicationFileIds?: string[] }): Promise<{
     isSuccess: boolean;
     code: number;
@@ -111,35 +98,12 @@ export class VerificationService {
             vcProvider = 'dhiway';
           }
 
-          // Get API endpoint from the array mapping
-          const verificationAPIUrl = this.getVerifierApiUrl(vcProvider);
-          if (!verificationAPIUrl) {
-            verificationResults.push({
-              id: file.id,
-              filePath: file.filePath,
-              isValid: false,
-              message: `No API endpoint configured for verifier: ${vcProvider}`,
-            });
-
-            await this.prisma.applicationFiles.update({
-              where: { id: file.id },
-              data: {
-                verificationStatus: {
-                  status: 'Unverified',
-                  verificationErrors: [`No API endpoint configured for verifier: ${vcProvider}`],
-                },
-              },
-            });
-            continue;
-          }
-
           const response = await lastValueFrom(
             this.httpService.post(apiUrl, {
               credential: parsedData,
-              "config": {
-                "method": "online",
-                "verifierName": vcProvider,
-                "apiEndpoint": verificationAPIUrl,
+              config: {
+                method: "online",
+                verifierName: vcProvider,
               }
             })
           );
