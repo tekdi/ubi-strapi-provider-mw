@@ -16,9 +16,6 @@ export interface BenefitDetail {
 }
 
 type ApplicationData = Record<string, any>;
-type BenefitDefinition = {
-  calculationRules: any[];
-};
 
 @Injectable()
 export class ApplicationsService {
@@ -111,7 +108,7 @@ export class ApplicationsService {
   }
 
   // Get all applications with benefit details
-  async findAll(listDto: ListApplicationsDto) {
+  async findAll(listDto: ListApplicationsDto, authorization: string) {
     const applications = await this.prisma.applications.findMany({
       where: {
         benefitId: listDto.benefitId
@@ -121,7 +118,7 @@ export class ApplicationsService {
     // Enrich applications with benefit details
     let benefit: BenefitDetail | null = null;
     try {
-      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`, authorization);
       benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
@@ -136,7 +133,7 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async findOne(id: number) {
+  async findOne(id: number, authorization: string) {
     const application = await this.prisma.applications.findUnique({
       where: { id },
       include: {
@@ -166,7 +163,7 @@ export class ApplicationsService {
 
     let benefitDetails
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
 
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
@@ -182,6 +179,15 @@ export class ApplicationsService {
     }
 
     return application;
+  }
+
+  async findUnique(id: number) {
+    return await this.prisma.applications.findUnique({
+      where: { id },
+      include: {
+        applicationFiles: true
+      }
+    });
   }
 
   async find(where: Prisma.ApplicationsWhereInput) {
@@ -304,46 +310,46 @@ export class ApplicationsService {
   private async fetchApplications(benefitId: string): Promise<any[]> {
     try {
       return await this.prisma.applications.findMany({
-				where: {
-					benefitId,
-					// status: {
-					// 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
-					// },
-				},
-			});
+        where: {
+          benefitId,
+          // status: {
+          // 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
+          // },
+        },
+      });
     } catch (error) {
       throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
     }
   }
 
-private resolveDynamicFields(
-  apps: any[],
-  fields: string[],
-  source: 'applicationData' | 'calculatedAmount',
-  excludeFields: string[] = []
-): string[] {
-  if (!Array.isArray(fields)) return [];
+  private resolveDynamicFields(
+    apps: any[],
+    fields: string[],
+    source: 'applicationData' | 'calculatedAmount',
+    excludeFields: string[] = []
+  ): string[] {
+    if (!Array.isArray(fields)) return [];
 
-  const isWildcard = fields.length === 1 && fields[0] === '*';
+    const isWildcard = fields.length === 1 && fields[0] === '*';
 
-  const keySet = new Set<string>();
-  for (const app of apps) {
-    const sourceData = app[source];
-    if (sourceData && typeof sourceData === 'object') {
-      Object.keys(sourceData).forEach(key => {
-        if (!excludeFields.includes(key)) {
-          keySet.add(key);
-        }
-      });
+    const keySet = new Set<string>();
+    for (const app of apps) {
+      const sourceData = app[source];
+      if (sourceData && typeof sourceData === 'object') {
+        Object.keys(sourceData).forEach(key => {
+          if (!excludeFields.includes(key)) {
+            keySet.add(key);
+          }
+        });
+      }
     }
-  }
 
-  if (isWildcard) {
-    return Array.from(keySet).sort((a, b) => a.localeCompare(b));
-  }
+    if (isWildcard) {
+      return Array.from(keySet).sort((a, b) => a.localeCompare(b));
+    }
 
-  return fields.filter(field => !excludeFields.includes(field));
-}
+    return fields.filter(field => !excludeFields.includes(field));
+  }
 
 
   private generateAutoFields(fields: string[], index: number): (string | number)[] {
@@ -359,12 +365,12 @@ private resolveDynamicFields(
   }
 
   private generateCalcAmountFields(app: any, fields: string[]): any[] {
-  const calcAmountData = app.calculatedAmount ?? {};
-  return fields.map(field => {
-    const value = calcAmountData[field];
-    return value ?? '';
-  });
-}
+    const calcAmountData = app.calculatedAmount ?? {};
+    return fields.map(field => {
+      const value = calcAmountData[field];
+      return value ?? '';
+    });
+  }
 
   private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
     return fields.map(field => {
@@ -379,7 +385,7 @@ private resolveDynamicFields(
   }
 
   // Get a single application by ID
-  async calculateBenefit(id: number) {
+  async calculateBenefit(id: number, authorization: string) {
     const application = await this.prisma.applications.findUnique({
       where: { id }
     });
@@ -390,21 +396,21 @@ private resolveDynamicFields(
 
     let benefitDetails;
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
     } catch (error) {
       throw new NotFoundException('Benefit not found');
     }
-   
-    
+
+
     let amounts;
     amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
-    try{
-        await this.update(id, {
-          calculatedAmount: amounts,
-          finalAmount: `${amounts?.totalPayout}`,
-          calculationsProcessedAt: new Date()
-        })
-    }catch(err){
+    try {
+      await this.update(id, {
+        calculatedAmount: amounts,
+        finalAmount: `${amounts?.totalPayout}`,
+        calculationsProcessedAt: new Date()
+      })
+    } catch (err) {
       console.error(`Error updating benefit details for application: ${id}`, err.message);
     }
     return amounts;

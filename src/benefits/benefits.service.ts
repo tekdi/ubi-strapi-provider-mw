@@ -63,7 +63,7 @@ export class BenefitsService {
     }
   }
 
-  async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
+  async getBenefits(body: SearchBenefitsDto, authorization: string): Promise<any> {
     const page = body?.page ?? '1';
     const pageSize = body?.pageSize ?? '100';
     const sort = body?.sort ?? 'createdAt:desc';
@@ -89,7 +89,7 @@ export class BenefitsService {
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: req.headers['authorization'] ?? req.headers['Authorization'],
+      Authorization: authorization,
     };
 
     const response = await this.httpService.axiosRef.get(url, {
@@ -140,13 +140,14 @@ export class BenefitsService {
     return response.data;
   }
 
-  async getBenefitsByIdStrapi(id: string): Promise<any> {
+  async getBenefitsByIdStrapi(id: string, authorization?: string): Promise<any> {
+    console.log(authorization);
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.strapiToken}`,
+          Authorization: authorization ?? `Bearer ${this.strapiToken}`,
         },
       },
     );
@@ -154,9 +155,9 @@ export class BenefitsService {
     return response;
   }
 
-  async getBenefitsById(id: string): Promise<any> {
+  async getBenefitsById(id: string, authorization : string): Promise<any> {
     try {
-      const response = await this.getBenefitsByIdStrapi(id);
+      const response = await this.getBenefitsByIdStrapi(id, authorization);
       return response.data;
     } catch (error) {
       if (error.isAxiosError) {
@@ -307,7 +308,10 @@ export class BenefitsService {
       const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
       // Fetch application data from db
-      const benefit = await this.applicationsService.findOne(Number(applicationId));
+      const benefit = await this.applicationsService.findUnique(Number(applicationId));
+      if (!benefit) {
+        throw new BadRequestException('Application not found');
+      }
       const benefitData = await this.getBenefitsByIdStrapi(benefit.benefitId); // from strapi
 
       let mappedResponse;
