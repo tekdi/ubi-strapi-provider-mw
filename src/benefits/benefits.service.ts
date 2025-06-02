@@ -3,9 +3,7 @@ import {
   Injectable,
   Inject,
   InternalServerErrorException,
-  forwardRef,
-  HttpException,
-  HttpStatus,
+  forwardRef
 } from '@nestjs/common';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
@@ -140,7 +138,7 @@ export class BenefitsService {
     return response.data;
   }
 
-  async getBenefitsByIdStrapi(id: string): Promise<any> {
+  async getBenefitsById(id: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
@@ -154,29 +152,9 @@ export class BenefitsService {
     return response;
   }
 
-  async getBenefitsById(id: string): Promise<any> {
-    try {
-      const response = await this.getBenefitsByIdStrapi(id);
-      return response.data;
-    } catch (error) {
-      if (error.isAxiosError) {
-        // Handle AxiosError and rethrow as HttpException
-        throw new HttpException(
-          error.response?.data?.message ?? 'Benefit not found',
-          error.response?.status ?? HttpStatus.NOT_FOUND,
-        );
-      }
-
-      // Handle other errors
-      throw new HttpException(
-        error.message ?? 'Internal server error',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
   async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
+      // Example: Call an external API
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
         `${this.strapiUrl}/api/benefits${this.urlExtension}`,
@@ -205,31 +183,27 @@ export class BenefitsService {
 
   async selectBenefitsById(body: any): Promise<any> {
     this.checkBapIdAndUri(body?.context?.bap_id, body?.context?.bap_uri);
-    try {
-      let id = body.message.order.items[0].id;
 
-      const response = await this.getBenefitsByIdStrapi(id);
-      let mappedResponse;
-      if (response?.data) {
-        mappedResponse = await this.transformScholarshipsToOnestFormat(
-          [response?.data?.data],
-          'on_select',
-        );
-      }
+    let id = body.message.order.items[0].id;
 
-      return mappedResponse;
-    } catch (error) {
-      if (error.isAxiosError) {
-        // Handle AxiosError and rethrow as HttpException
-        throw new HttpException(
-          error.response?.data?.message ?? 'Benefit not found',
-          error.response?.status ?? HttpStatus.NOT_FOUND,
-        );
-      }
-
-      console.error('Error in selectBenefitsById:', error);
-      throw new InternalServerErrorException('Failed to select benefit by ID');
+    const response = await this.httpService.axiosRef.get(
+      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.strapiToken}`,
+        },
+      },
+    );
+    let mappedResponse;
+    if (response?.data) {
+      mappedResponse = await this.transformScholarshipsToOnestFormat(
+        [response?.data?.data],
+        'on_select',
+      );
     }
+
+    return mappedResponse;
   }
 
   async init(selectDto: InitRequestDto): Promise<any> {
@@ -237,8 +211,8 @@ export class BenefitsService {
     try {
       const benefitId = selectDto.message.order.items[0].id;
 
-      // Fetch benefit data from the Strapi API
-      const benefitData = await this.getBenefitsByIdStrapi(benefitId);
+      // Fetch benefit data from the strapi
+      const benefitData = await this.getBenefitsById(benefitId);
 
       let mappedResponse;
 
@@ -287,14 +261,6 @@ export class BenefitsService {
       };
       return selectDto;
     } catch (error) {
-      if (error.isAxiosError) {
-        // Handle AxiosError and rethrow as HttpException
-        throw new HttpException(
-          error.response?.data?.message ?? 'Benefit not found',
-          error.response?.status ?? HttpStatus.NOT_FOUND,
-        );
-      }
-
       console.error('Error in handleInit:', error);
       throw new InternalServerErrorException('Failed to initialize benefit');
     }
@@ -308,7 +274,7 @@ export class BenefitsService {
 
       // Fetch application data from db
       const benefit = await this.applicationsService.findOne(Number(applicationId));
-      const benefitData = await this.getBenefitsByIdStrapi(benefit.benefitId); // from strapi
+      const benefitData = await this.getBenefitsById(benefit.benefitId); // from strapi
 
       let mappedResponse;
       if (benefitData?.data) {
@@ -347,14 +313,6 @@ export class BenefitsService {
 
       return confirmData;
     } catch (error) {
-      if (error.isAxiosError) {
-        // Handle AxiosError and rethrow as HttpException
-        throw new HttpException(
-          error.response?.data?.message ?? 'Benefit not found',
-          error.response?.status ?? HttpStatus.NOT_FOUND,
-        );
-      }
-
       console.error('Error in confirm:', error);
       throw new InternalServerErrorException('Failed to confirm benefit');
     }
@@ -362,165 +320,152 @@ export class BenefitsService {
 
   async status(statusDto: StatusRequestDto): Promise<any> {
     this.checkBapIdAndUri(statusDto?.context?.bap_id, statusDto?.context?.bap_uri);
-    try {
-      const statusData = new StatusResponseDto();
 
-      // Extract order ID from the request body
-      const orderId = statusDto?.message?.order_id;
+    const statusData = new StatusResponseDto();
 
-      // Fetch application details using the order ID
-      const applicationData = await this.applicationsService.find({
-        orderId,
-      });
+    // Extract order ID from the request body
+    const orderId = statusDto?.message?.order_id;
 
-      if (!applicationData || applicationData.length === 0) {
-        throw new BadRequestException('No application found for the given order ID');
-      }
+    // Fetch application details using the order ID
+    const applicationData = await this.applicationsService.find({
+      orderId,
+    });
 
-      // Extract application from the application data
-      const application = applicationData[0];
-
-      // Fetch benefit details using the benefit ID
-      const benefitData = await this.getBenefitsByIdStrapi(application.benefitId); // from strapi
-
-      // Extract status from application data and add it to benefit data
-      const status = application.status.toUpperCase();
-      let statusCode;
-      if (status === 'APPROVED') {
-        statusCode = {
-          "code": "APPLICATION-APPROVED",
-          "name": "Application Approved"
-        };
-      } else if (status === 'REJECTED') {
-        statusCode = {
-          "code": "APPLICATION-REJECTED",
-          "name": "Application Rejected"
-        };
-      } else {
-        statusCode = {
-          "code": "APPLICATION-" + status, // from db 
-          "name": "Application " + titleCase(application.status)
-        };
-      }
-
-
-      // Prepare the status object
-      const metadata = {
-        billing: {
-          name: 'N/A',
-          phone: 'N/A',
-          email: 'dummyemail@dummydomain.com',
-          address: 'N/A',
-          organization: {
-            "descriptor": {
-              "name": "Onest",
-              "code": "onest.com"
-            },
-            "contact": {
-              "phone": "+91-8888888888",
-              "email": "scholarships@nammayatri.in"
-            }
-          },
-        },
-        payments: [
-          {
-            params: {
-              bank_code: 'ICICI',
-              bank_account_number: '123456789012',
-              bank_account_name: 'John Doe',
-            },
-            type: 'PRE-ORDER',
-            status: 'PAID',
-            collected_by: 'bpp',
-          },
-        ],
-        fulfillments: [{
-          id: 'FULFILL_UNIFIED',
-          type: 'APPLICATION',
-          tracking: false,
-          state: {
-            descriptor: {
-              ...statusCode
-            },
-            updated_at: new Date().toISOString(),
-          },
-          agent: {
-            "person": {
-              "name": "Ekstep Foundation SPoc"
-            },
-            "contact": {
-              "email": "ekstepsupport@ekstep.com"
-            },
-          },
-          customer: {
-            "id": "aadhaar:798677675565",
-            "person": {
-              "name": "Jane Doe",
-              "age": "13",
-              "gender": "female"
-            },
-            "contact": {
-              "phone": "+91-9663088848",
-              "email": "jane.doe@example.com"
-            }
-          }
-        }],
-        quote: {
-          price: {
-            currency: 'INR',
-            value: '123',
-          },
-          breakup: [
-            {
-              title: 'Tuition Fee',
-              price: {
-                currency: 'INR',
-                value: '123',
-              },
-            }
-          ]
-        },
-      };
-      let mappedResponse;
-      if (benefitData?.data) {
-        mappedResponse = await this.transformScholarshipsToOnestFormat(
-          [benefitData?.data?.data],
-          'on_status',
-        );
-
-      }
-
-      const { id, descriptor, items, rateable }: any =
-        mappedResponse?.message.catalog.providers?.[0] ?? { id: null, descriptor: null, items: [], rateable: false };
-
-      // Construct the final response
-      statusData["message"] = {
-        "order": {
-          provider: { id, descriptor, rateable, },
-          items,
-          id: orderId || "",
-          ...metadata
-        }
-      };
-
-      statusData["context"] = {
-        ...statusDto.context,
-        ...mappedResponse?.context,
-      };
-
-      return statusData;
-    } catch (error) {
-      if (error.isAxiosError) {
-        // Handle AxiosError and rethrow as HttpException
-        throw new HttpException(
-          error.response?.data?.message ?? 'Benefit not found',
-          error.response?.status ?? HttpStatus.NOT_FOUND,
-        );
-      }
-
-      console.error('Error in status:', error);
-      throw new InternalServerErrorException('Failed to fetch benefit status');
+    if (!applicationData || applicationData.length === 0) {
+      throw new BadRequestException('No application found for the given order ID');
     }
+
+    // Extract application from the application data
+    const application = applicationData[0];
+
+    // Fetch benefit details using the benefit ID
+    const benefitData = await this.getBenefitsById(application.benefitId); // from strapi
+
+    // Extract status from application data and add it to benefit data
+    const status = application.status.toUpperCase();
+    let statusCode;
+    if (status === 'APPROVED') {
+      statusCode = {
+        "code": "APPLICATION-APPROVED",
+        "name": "Application Approved"
+      };
+    } else if (status === 'REJECTED') {
+      statusCode = {
+        "code": "APPLICATION-REJECTED",
+        "name": "Application Rejected"
+      };
+    } else {
+      statusCode = {
+        "code": "APPLICATION-" + status, // from db 
+        "name": "Application " + titleCase(application.status)
+      };
+    }
+
+
+    // Prepare the status object
+    const metadata = {
+      billing: {
+        name: 'N/A',
+        phone: 'N/A',
+        email: 'dummyemail@dummydomain.com',
+        address: 'N/A',
+        organization: {
+          "descriptor": {
+            "name": "Onest",
+            "code": "onest.com"
+          },
+          "contact": {
+            "phone": "+91-8888888888",
+            "email": "scholarships@nammayatri.in"
+          }
+        },
+      },
+      payments: [
+        {
+          params: {
+            bank_code: 'ICICI',
+            bank_account_number: '123456789012',
+            bank_account_name: 'John Doe',
+          },
+          type: 'PRE-ORDER',
+          status: 'PAID',
+          collected_by: 'bpp',
+        },
+      ],
+      fulfillments: [{
+        id: 'FULFILL_UNIFIED',
+        type: 'APPLICATION',
+        tracking: false,
+        state: {
+          descriptor: {
+            ...statusCode
+          },
+          updated_at: new Date().toISOString(),
+        },
+        agent: {
+          "person": {
+            "name": "Ekstep Foundation SPoc"
+          },
+          "contact": {
+            "email": "ekstepsupport@ekstep.com"
+          },
+        },
+        customer: {
+          "id": "aadhaar:798677675565",
+          "person": {
+            "name": "Jane Doe",
+            "age": "13",
+            "gender": "female"
+          },
+          "contact": {
+            "phone": "+91-9663088848",
+            "email": "jane.doe@example.com"
+          }
+        }
+      }],
+      quote: {
+        price: {
+          currency: 'INR',
+          value: '123',
+        },
+        breakup: [
+          {
+            title: 'Tuition Fee',
+            price: {
+              currency: 'INR',
+              value: '123',
+            },
+          }
+        ]
+      },
+    };
+    let mappedResponse;
+    if (benefitData?.data) {
+      mappedResponse = await this.transformScholarshipsToOnestFormat(
+        [benefitData?.data?.data],
+        'on_status',
+      );
+    }
+
+    const { id, descriptor, items, rateable }: any =
+      mappedResponse?.message.catalog.providers?.[0] ?? { id: null, descriptor: null, items: [], rateable: false };
+
+    // Construct the final response
+    statusData["message"] = {
+      "order": {
+        provider: { id, descriptor, rateable, },
+        items,
+        id: orderId || "",
+        ...metadata
+      }
+    };
+
+    statusData["context"] = {
+      ...statusDto.context,
+      ...mappedResponse?.context,
+    };
+
+    return statusData;
   }
 
   // Function to check if the BAP ID and URI are valid
