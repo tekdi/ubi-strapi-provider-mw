@@ -13,11 +13,19 @@ export class VerificationController {
   @ApiOperation({ summary: 'Verify Application VCS' })
   @ApiBody({
     type: VerifyApplicationVcsRequestDto,
-    description: 'The application ID to verify',
+    description: 'The application ID and optional file IDs to verify',
     examples: {
       default: {
-        value: { applicationId: "1" }, // Correctly define the payload structure
+        value: {
+          applicationId: "1",
+          applicationFileIds: ["13", "14"]
+        },
       },
+      onlyApplicationId: {
+        value: {
+          applicationId: "1"
+        }
+      }
     },
   })
   async verifyApplicationVcs(
@@ -27,7 +35,7 @@ export class VerificationController {
     code: number;
     response: VerifyApplicationVcsResponseDto;
   }> {
-    const { applicationId } = verifyApplicationVcsRequestDto;
-    return this.verificationService.verifyApplicationVcs(applicationId);
+    // Pass the whole DTO object to the service
+    return this.verificationService.verifyApplicationVcs(verifyApplicationVcsRequestDto);
   }
 }

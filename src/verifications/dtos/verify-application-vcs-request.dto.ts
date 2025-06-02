@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional, IsArray } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class VerifyApplicationVcsRequestDto {
   @ApiProperty({
@@ -9,4 +9,15 @@ export class VerifyApplicationVcsRequestDto {
   @IsNotEmpty({ message: 'Application ID is required' })
   @IsString({ message: 'Application ID must be a string' })
   applicationId: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of application file IDs to verify (optional)',
+    example: ['13', '14'],
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  applicationFileIds?: string[];
 }
