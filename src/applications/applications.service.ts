@@ -121,7 +121,7 @@ export class ApplicationsService {
     // Enrich applications with benefit details
     let benefit: BenefitDetail | null = null;
     try {
-      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`);
+      const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(`${listDto.benefitId}`);
       benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
@@ -166,7 +166,7 @@ export class ApplicationsService {
 
     let benefitDetails
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+      benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`);
 
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
@@ -263,7 +263,7 @@ export class ApplicationsService {
     } = reportConfig;
 
     const applications = await this.fetchApplications(benefitId);
-    const benefitDetail = await this.benefitsService.getBenefitsById(`${benefitId}`);
+    const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(`${benefitId}`);
     const schemeName = benefitDetail?.data?.data?.title ?? '';
     const applicationsWithScheme = applications.map(app => ({
       ...app,
@@ -397,7 +397,7 @@ private resolveDynamicFields(
 
     let benefitDetails;
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`);
+      benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`);
     } catch (error) {
       throw new NotFoundException('Benefit not found');
     }
