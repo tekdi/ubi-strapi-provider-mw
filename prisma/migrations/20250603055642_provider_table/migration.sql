@@ -1,11 +1,11 @@
 -- CreateTable
 CREATE TABLE "Provider" (
     "id" SERIAL NOT NULL,
-    "strapiId" TEXT NOT NULL,
-    "strapidocumentId" TEXT NOT NULL,
+    "catalogManagerId" TEXT NOT NULL,
+    "catalogManagerDocumentId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "strapiCode" TEXT NOT NULL,
-    "strapiRole" TEXT[],
+    "catalogManagerCode" TEXT NOT NULL,
+    "catalogManagerRole" TEXT[],
     "description" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -16,13 +16,13 @@ CREATE TABLE "Provider" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Provider_strapiId_key" ON "Provider"("strapiId");
+CREATE UNIQUE INDEX "Provider_catalogManagerId_key" ON "Provider"("catalogManagerId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Provider_strapidocumentId_key" ON "Provider"("strapidocumentId");
+CREATE UNIQUE INDEX "Provider_catalogManagerDocumentId_key" ON "Provider"("catalogManagerDocumentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Provider_name_key" ON "Provider"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Provider_strapiCode_key" ON "Provider"("strapiCode");
+CREATE UNIQUE INDEX "Provider_catalogManagerCode_key" ON "Provider"("catalogManagerCode");
