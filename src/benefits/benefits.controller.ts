@@ -20,7 +20,6 @@ import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
-import { getAuthToken } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
@@ -37,8 +36,7 @@ export class BenefitsController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string, @Req() req: Request): any {
-    const authToken = getAuthToken(req);
-    return this.benefitsService.getBenefitsById(id, authToken);
+    return this.benefitsService.getBenefitsById(id, req);
   }
 
   @Post('search')
@@ -49,8 +47,7 @@ export class BenefitsController {
     description: 'Search for benefits based on the logged in provider user.',
   })
   searchBenefits(@Body() body: SearchBenefitsDto, @Req() req: Request): any {
-    const authToken = getAuthToken(req);
-    return this.benefitsService.getBenefits(body, authToken);
+    return this.benefitsService.getBenefits(body, req);
   }
 
   @Post('dsep/search')

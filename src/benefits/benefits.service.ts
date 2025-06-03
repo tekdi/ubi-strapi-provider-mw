@@ -7,13 +7,14 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.constants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { generateRandomString, titleCase } from 'src/common/util';
+import { generateRandomString, getAuthToken, titleCase } from 'src/common/util';
 import { PrismaService } from '../prisma.service';
 import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
@@ -63,7 +64,8 @@ export class BenefitsService {
     }
   }
 
-  async getBenefits(body: SearchBenefitsDto, authToken: string): Promise<any> {
+  async getBenefits(body: SearchBenefitsDto, req: Request): Promise<any> {
+    const authToken = getAuthToken(req);
     const page = body?.page ?? '1';
     const pageSize = body?.pageSize ?? '100';
     const sort = body?.sort ?? 'createdAt:desc';
@@ -154,8 +156,9 @@ export class BenefitsService {
     return response;
   }
 
-  async getBenefitsById(id: string, authToken : string): Promise<any> {
+  async getBenefitsById(id: string, req: Request): Promise<any> {
     try {
+      const authToken = getAuthToken(req);
       const response = await this.getBenefitsByIdStrapi(id, authToken);
       return response.data;
     } catch (error) {

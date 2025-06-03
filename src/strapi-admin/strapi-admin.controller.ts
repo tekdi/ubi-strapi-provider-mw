@@ -5,7 +5,6 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { StrapiAdminService } from './strapi-admin.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
 import { StrapiAdminUserDto } from './dto/strapi-admin-user.dto';
-import { getAuthToken } from 'src/common/util';
 
 @ApiTags('Strapi Admin')
 @Controller('strapi-admin')
@@ -20,8 +19,7 @@ export class StrapiAdminController {
     @Req() req: Request,
     @Body() strapiAdminProviderDto: StrapiAdminProviderDto,
   ): Promise<any> {
-    const authToken = getAuthToken(req);
-    return this.strapiAdminService.createRole(strapiAdminProviderDto, authToken);
+    return this.strapiAdminService.createRole(strapiAdminProviderDto, req);
   }
 
   @Post('users')
@@ -35,7 +33,6 @@ export class StrapiAdminController {
     @Req() req: Request,
     @Body() strapiAdminUserDto: StrapiAdminUserDto,
   ): Promise<any> {
-    const authToken = getAuthToken(req);
-    return this.strapiAdminService.createUser(strapiAdminUserDto, authToken);
+    return this.strapiAdminService.createUser(strapiAdminUserDto, req);
   }
 }

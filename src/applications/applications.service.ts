@@ -1,9 +1,10 @@
 import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
+import { Request } from 'express';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-import { generateRandomString } from '../common/util';
+import { generateRandomString, getAuthToken } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -108,7 +109,8 @@ export class ApplicationsService {
   }
 
   // Get all applications with benefit details
-  async findAll(listDto: ListApplicationsDto, authToken: string) {
+  async findAll(listDto: ListApplicationsDto, req : Request) {
+    const authToken = getAuthToken(req);
     const applications = await this.prisma.applications.findMany({
       where: {
         benefitId: listDto.benefitId
@@ -133,7 +135,8 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async findOne(id: number, authToken: string) {
+  async findOne(id: number, req: Request) {
+    const authToken = getAuthToken(req);
     const application = await this.prisma.applications.findUnique({
       where: { id },
       include: {
@@ -385,7 +388,8 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async calculateBenefit(id: number, authToken: string) {
+  async calculateBenefit(id: number, req: Request) {
+    const authToken = getAuthToken(req);
     const application = await this.prisma.applications.findUnique({
       where: { id }
     });

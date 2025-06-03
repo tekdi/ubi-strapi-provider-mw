@@ -1,11 +1,13 @@
 import { HttpService } from '@nestjs/axios';
 import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
 import permissionsConfig from './permissions.config.json';
 import { StrapiAdminUserDto } from './dto/strapi-admin-user.dto';
 import { StrapiRegisterResponse, StrapiUserResponse } from './interfaces';
+import { getAuthToken } from 'src/common/util';
 
 @Injectable()
 export class StrapiAdminService {
@@ -28,7 +30,9 @@ export class StrapiAdminService {
     }
   }
 
-  async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, authToken: string): Promise<any> {
+  async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, req: Request): Promise<any> {
+    const authToken = getAuthToken(req);
+
     // Create a new role in Strapi, add it to Provider in Database and add permissions to it
     try {
       const role = await this.addRole(
@@ -141,9 +145,10 @@ export class StrapiAdminService {
     })
   }
 
-  async createUser(strapiAdminUserDto: StrapiAdminUserDto, authorization: string): Promise<any> {
+  async createUser(strapiAdminUserDto: StrapiAdminUserDto, req: Request): Promise<any> {
     try {
-      const addedUser = await this.addUserToRole(strapiAdminUserDto, authorization);
+      const authToken = getAuthToken(req);
+      const addedUser = await this.addUserToRole(strapiAdminUserDto, authToken);
       if (!addedUser) {
         throw new HttpException(
           'Failed to create user in Strapi',
@@ -220,7 +225,7 @@ export class StrapiAdminService {
     return responseData;
   }
 
-  async registerUser({ firstname, lastname, password, registrationToken }): Promise<StrapiRegisterResponse> {
+  async registerUser({ firstname, lastname, password, registrationToken }: { firstname: string; lastname: string; password: string; registrationToken: string }): Promise<StrapiRegisterResponse> {
 
     const registerEndpoint = `${this.strapiUrl}/admin/register`;
 
