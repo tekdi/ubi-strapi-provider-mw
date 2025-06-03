@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
 import permissionsConfig from './permissions.config.json';
+import { StrapiAdminUserDto } from './dto/strapi-admin-user.dto';
+import { StrapiRegisterResponse, StrapiUserResponse } from './interfaces';
 
 @Injectable()
 export class StrapiAdminService {
@@ -137,5 +139,129 @@ export class StrapiAdminService {
         publishedAt: responseData.publishedAt,
       }
     })
+  }
+
+  async createUser(strapiAdminUserDto: StrapiAdminUserDto, authorization: string): Promise<any> {
+    try {
+      const addedUser = await this.addUserToRole(strapiAdminUserDto, authorization);
+      if (!addedUser) {
+        throw new HttpException(
+          'Failed to create user in Strapi',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const registeredUser = await this.registerUser({
+        firstname: strapiAdminUserDto.firstname,
+        lastname: strapiAdminUserDto.lastname,
+        password: strapiAdminUserDto.password,
+        registrationToken: addedUser.registrationToken,
+      });
+
+      if (!registeredUser) {
+        throw new HttpException(
+          'Failed to register user in Strapi',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const userData = await this.createUserInDatabase({
+        id: addedUser.id,
+        email: addedUser.email,
+        firstname: addedUser.firstname,
+        lastname: addedUser.lastname,
+        roles: addedUser.roles,
+      });
+
+      return userData;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      if (error.isAxiosError) {
+        throw new HttpException(
+          error.response?.data ?? 'User creation failed',
+          error.response?.status ?? HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message ?? 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async addUserToRole(strapiAdminUserDto: StrapiAdminUserDto, authToken: string): Promise<StrapiUserResponse> {
+    const usersEndpoint = `${this.strapiUrl}/admin/users`;
+
+    const response = await this.httpService.axiosRef.post(
+      usersEndpoint,
+      {
+        firstname: strapiAdminUserDto.firstname,
+        lastname: strapiAdminUserDto.lastname,
+        email: strapiAdminUserDto.email,
+        roles: strapiAdminUserDto.roles,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': authToken,
+        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to create user in Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return responseData;
+  }
+
+  async registerUser({ firstname, lastname, password, registrationToken }): Promise<StrapiRegisterResponse> {
+
+    const registerEndpoint = `${this.strapiUrl}/admin/register`;
+
+    const response = await this.httpService.axiosRef.post(
+      registerEndpoint,
+      {
+        "userInfo": {
+          firstname: firstname,
+          lastname: lastname,
+          password: password,
+        },
+        "registrationToken": registrationToken
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to register user in Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return responseData;
+  }
+
+  private async createUserInDatabase(responseData: any): Promise<any> {
+    return await this.prisma.users.create({
+      data: {
+        s_id: `${responseData.id}`,
+        email: responseData.email,
+        first_name: responseData.firstname,
+        last_name: responseData.lastname,
+        enabled: true,
+        s_roles: responseData.roles.map((role: any) => role.name),
+      },
+    });
   }
 }
