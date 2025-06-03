@@ -25,7 +25,6 @@ export class AuthService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Accept-Language': 'en-GB,en;q=0.9',
           },
         },
       );
