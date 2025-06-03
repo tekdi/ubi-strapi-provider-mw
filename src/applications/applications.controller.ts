@@ -36,8 +36,8 @@ export class ApplicationsController {
   @ApiResponse(ApplicationsApiDocs.findAll.responses.success)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async findAll(@Query() listDto: ListApplicationsDto, @Req() req: Request) {
-    const authorization = getAuthToken(req);
-    return this.applicationsService.findAll(listDto, authorization);
+    const authToken = getAuthToken(req);
+    return this.applicationsService.findAll(listDto, authToken);
   }
 
   @Get(':id')
@@ -48,8 +48,8 @@ export class ApplicationsController {
   @ApiResponse(ApplicationsApiDocs.findOne.responses.success)
   @ApiResponse(ApplicationsApiDocs.findOne.responses.notFound)
   async findOne(@Param('id') id: string, @Req() req: Request) {
-    const authorization = getAuthToken(req);
-    return this.applicationsService.findOne(Number(id), authorization);
+    const authToken = getAuthToken(req);
+    return this.applicationsService.findOne(Number(id), authToken);
   }
 
   @Patch(':id')
@@ -123,8 +123,8 @@ export class ApplicationsController {
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.success)
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.notFound)
   async calculateBenefit(@Param('id') id: string, @Req() req: Request) {
-    const authorization = getAuthToken(req);
-    return this.applicationsService.calculateBenefit(Number(id), authorization);
+    const authToken = getAuthToken(req);
+    return this.applicationsService.calculateBenefit(Number(id), authToken);
   }
 }
 

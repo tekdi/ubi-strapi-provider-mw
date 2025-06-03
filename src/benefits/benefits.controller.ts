@@ -37,8 +37,8 @@ export class BenefitsController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   getBenefitsById(@Param('docid') id: string, @Req() req: Request): any {
-    const authorization = getAuthToken(req);
-    return this.benefitsService.getBenefitsById(id, authorization);
+    const authToken = getAuthToken(req);
+    return this.benefitsService.getBenefitsById(id, authToken);
   }
 
   @Post('search')
@@ -49,8 +49,8 @@ export class BenefitsController {
     description: 'Search for benefits based on the logged in provider user.',
   })
   searchBenefits(@Body() body: SearchBenefitsDto, @Req() req: Request): any {
-    const authorization = getAuthToken(req);
-    return this.benefitsService.getBenefits(body, authorization);
+    const authToken = getAuthToken(req);
+    return this.benefitsService.getBenefits(body, authToken);
   }
 
   @Post('dsep/search')

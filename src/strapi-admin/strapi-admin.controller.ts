@@ -18,7 +18,7 @@ export class StrapiAdminController {
     @Req() req: Request,
     @Body() strapiAdminProviderDto: StrapiAdminProviderDto,
   ): Promise<any> {
-    const authorization = getAuthToken(req);
-    return this.strapiAdminService.createRole(strapiAdminProviderDto, authorization);
+    const authToken = getAuthToken(req);
+    return this.strapiAdminService.createRole(strapiAdminProviderDto, authToken);
   }
 }
