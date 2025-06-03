@@ -63,7 +63,7 @@ export class BenefitsService {
     }
   }
 
-  async getBenefits(body: SearchBenefitsDto, authorization: string): Promise<any> {
+  async getBenefits(body: SearchBenefitsDto, authToken: string): Promise<any> {
     const page = body?.page ?? '1';
     const pageSize = body?.pageSize ?? '100';
     const sort = body?.sort ?? 'createdAt:desc';
@@ -89,7 +89,7 @@ export class BenefitsService {
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: authorization,
+      Authorization: authToken,
     };
 
     const response = await this.httpService.axiosRef.get(url, {
@@ -140,13 +140,13 @@ export class BenefitsService {
     return response.data;
   }
 
-  async getBenefitsByIdStrapi(id: string, authorization?: string): Promise<any> {
+  async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: authorization ?? `Bearer ${this.strapiToken}`,
+          Authorization: authToken ?? `Bearer ${this.strapiToken}`,
         },
       },
     );
@@ -154,9 +154,9 @@ export class BenefitsService {
     return response;
   }
 
-  async getBenefitsById(id: string, authorization : string): Promise<any> {
+  async getBenefitsById(id: string, authToken : string): Promise<any> {
     try {
-      const response = await this.getBenefitsByIdStrapi(id, authorization);
+      const response = await this.getBenefitsByIdStrapi(id, authToken);
       return response.data;
     } catch (error) {
       if (error.isAxiosError) {

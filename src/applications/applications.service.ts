@@ -108,7 +108,7 @@ export class ApplicationsService {
   }
 
   // Get all applications with benefit details
-  async findAll(listDto: ListApplicationsDto, authorization: string) {
+  async findAll(listDto: ListApplicationsDto, authToken: string) {
     const applications = await this.prisma.applications.findMany({
       where: {
         benefitId: listDto.benefitId
@@ -118,7 +118,7 @@ export class ApplicationsService {
     // Enrich applications with benefit details
     let benefit: BenefitDetail | null = null;
     try {
-      const benefitDetail = await this.benefitsService.getBenefitsById(`${listDto.benefitId}`, authorization);
+      const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(`${listDto.benefitId}`, authToken);
       benefit = {
         id: benefitDetail?.data?.data?.id,
         documentId: benefitDetail?.data?.data?.documentId,
@@ -133,7 +133,7 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async findOne(id: number, authorization: string) {
+  async findOne(id: number, authToken: string) {
     const application = await this.prisma.applications.findUnique({
       where: { id },
       include: {
@@ -163,7 +163,7 @@ export class ApplicationsService {
 
     let benefitDetails
     try {
-      benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
+      benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
 
     } catch (error) {
       console.error(`Error fetching benefit details for application22:`, error.message);
@@ -385,7 +385,7 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async calculateBenefit(id: number, authorization: string) {
+  async calculateBenefit(id: number, authToken: string) {
     const application = await this.prisma.applications.findUnique({
       where: { id }
     });
@@ -394,8 +394,8 @@ export class ApplicationsService {
       throw new NotFoundException('Applications not found');
     }
 
-    const benefitDetails = await this.benefitsService.getBenefitsById(`${application.benefitId}`, authorization);
-   
+    const benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
+
     if (!benefitDetails?.data?.data) {
       throw new NotFoundException('Benefit details not found');
     }

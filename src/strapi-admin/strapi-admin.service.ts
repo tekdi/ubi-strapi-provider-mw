@@ -26,13 +26,13 @@ export class StrapiAdminService {
     }
   }
 
-  async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, authorization: string): Promise<any> {
+  async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, authToken: string): Promise<any> {
     // Create a new role in Strapi, add it to Provider in Database and add permissions to it
     try {
       const role = await this.addRole(
         strapiAdminProviderDto.name,
         strapiAdminProviderDto.description,
-        authorization,
+        authToken,
       );
 
       const roleData = await this.createProvider(role);
@@ -44,7 +44,7 @@ export class StrapiAdminService {
         );
       }
 
-      const permissions = await this.addPermissionToRole(role.id, authorization);
+      const permissions = await this.addPermissionToRole(role.id, authToken);
 
       return {
         ...roleData,
@@ -65,7 +65,7 @@ export class StrapiAdminService {
     }
   }
 
-  async addRole(name: string, description: string, authorization: string): Promise<any> {
+  async addRole(name: string, description: string, authToken: string): Promise<any> {
     const rolesEndpoint = `${this.strapiUrl}/admin/roles`;
 
     const response = await this.httpService.axiosRef.post(
@@ -78,7 +78,7 @@ export class StrapiAdminService {
         headers: {
           'Content-Type': 'application/json',
           'accept': 'application/json',
-          'authorization': `${authorization}`,
+          'authorization': `${authToken}`,
         },
       },
     );
@@ -94,7 +94,7 @@ export class StrapiAdminService {
     return responseData;
   }
 
-  async addPermissionToRole(roleId: string, authorization: string): Promise<any> {
+  async addPermissionToRole(roleId: string, authToken: string): Promise<any> {
     const permissionsEndpoint = `${this.strapiUrl}/admin/roles/${roleId}/permissions`;
 
     const response = await this.httpService.axiosRef.put(
@@ -104,7 +104,7 @@ export class StrapiAdminService {
         headers: {
           'Content-Type': 'application/json',
           'accept': 'application/json',
-          'authorization': `${authorization}`,
+          'authorization': `${authToken}`,
         },
       },
     );
