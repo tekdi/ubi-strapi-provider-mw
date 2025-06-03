@@ -388,8 +388,7 @@ export class ApplicationsService {
   }
 
   // Get a single application by ID
-  async calculateBenefit(id: number, req: Request) {
-    const authToken = getAuthToken(req);
+  async calculateBenefit(id: number, authToken: string) {
     const application = await this.prisma.applications.findUnique({
       where: { id }
     });

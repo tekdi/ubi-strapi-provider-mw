@@ -121,7 +121,9 @@ export class ApplicationsController {
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.success)
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.notFound)
   async calculateBenefit(@Param('id') id: string, @Req() req: Request) {
-    return this.applicationsService.calculateBenefit(Number(id), req);
+    const authToken = getAuthToken(req);
+    // auth token is required for the benefit calculation as method is called from cron job
+    return this.applicationsService.calculateBenefit(Number(id), authToken);
   }
 }
 
