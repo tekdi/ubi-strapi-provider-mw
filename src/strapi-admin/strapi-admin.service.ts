@@ -143,7 +143,7 @@ export class StrapiAdminService {
     return this.mapFieldsForPermissions(responseData.sections.collectionTypes.subjects);
   }
 
-  async addPermissionToRole(roleId: string, authToken: string, fields : object): Promise<any> {
+  async addPermissionToRole(roleId: string, authToken: string, fields: object): Promise<any> {
     const permissionsEndpoint = `${this.strapiUrl}/admin/roles/${roleId}/permissions`;
 
     const permissionsData = permissionsConfig.map((p) => {
@@ -209,19 +209,12 @@ export class StrapiAdminService {
         );
       }
 
-      const registeredUser = await this.registerUser({
+      await this.registerUser({
         firstname: strapiAdminUserDto.firstname,
         lastname: strapiAdminUserDto.lastname,
         password: strapiAdminUserDto.password,
         registrationToken: addedUser.registrationToken,
       });
-
-      if (!registeredUser) {
-        throw new HttpException(
-          'Failed to register user in Strapi',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
 
       const userData = await this.createUserInDatabase({
         id: addedUser.id,
