@@ -12,7 +12,7 @@ import { ApplicationStatusValidationPipe } from './pipes/application-status-vali
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
-import { getBrowserInfo } from 'src/common/util';
+import { getAuthToken, getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Applications')
@@ -35,8 +35,8 @@ export class ApplicationsController {
   @ApiOperation(ApplicationsApiDocs.findAll.operation)
   @ApiResponse(ApplicationsApiDocs.findAll.responses.success)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async findAll(@Query() listDto: ListApplicationsDto) {
-    return this.applicationsService.findAll(listDto);
+  async findAll(@Query() listDto: ListApplicationsDto, @Req() req: Request) {
+    return this.applicationsService.findAll(listDto, req);
   }
 
   @Get(':id')
@@ -46,8 +46,8 @@ export class ApplicationsController {
   @ApiParam(ApplicationsApiDocs.findOne.param)
   @ApiResponse(ApplicationsApiDocs.findOne.responses.success)
   @ApiResponse(ApplicationsApiDocs.findOne.responses.notFound)
-  async findOne(@Param('id') id: string) {
-    return this.applicationsService.findOne(Number(id));
+  async findOne(@Param('id') id: string, @Req() req: Request) {
+    return this.applicationsService.findOne(Number(id), req);
   }
 
   @Patch(':id')
@@ -120,8 +120,10 @@ export class ApplicationsController {
   @ApiParam(ApplicationsApiDocs.calculateBenefit.param)
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.success)
   @ApiResponse(ApplicationsApiDocs.calculateBenefit.responses.notFound)
-  async calculateBenefit(@Param('id') id: string) {
-    return this.applicationsService.calculateBenefit(Number(id));
+  async calculateBenefit(@Param('id') id: string, @Req() req: Request) {
+    const authToken = getAuthToken(req);
+    // auth token is required for the benefit calculation as method is called from cron job
+    return this.applicationsService.calculateBenefit(Number(id), authToken);
   }
 }
 

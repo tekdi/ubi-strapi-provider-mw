@@ -10,6 +10,7 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { BenefitsService } from './benefits.service';
@@ -34,8 +35,8 @@ export class BenefitsController {
   @Get('getById/:docid')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  getBenefitsById(@Param('docid') id: string): any {
-    return this.benefitsService.getBenefitsById(id);
+  getBenefitsById(@Param('docid') id: string, @Req() req: Request): any {
+    return this.benefitsService.getBenefitsById(id, req);
   }
 
   @Post('search')
@@ -46,7 +47,7 @@ export class BenefitsController {
     description: 'Search for benefits based on the logged in provider user.',
   })
   searchBenefits(@Body() body: SearchBenefitsDto, @Req() req: Request): any {
-    return this.benefitsService.getBenefits(req, body);
+    return this.benefitsService.getBenefits(body, req);
   }
 
   @Post('dsep/search')
