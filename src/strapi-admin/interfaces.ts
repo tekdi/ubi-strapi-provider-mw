@@ -42,3 +42,22 @@ export interface StrapiRegisterResponse {
     roles: StrapiUserRole[];
   };
 }
+
+export interface FieldProperty {
+  label: string;
+  value: string;
+  required?: boolean;
+  children?: FieldProperty[];
+}
+
+export interface SectionProperty {
+  label: string;
+  value: string;
+  children: FieldProperty[];
+}
+
+export interface FieldSubject {
+  uid: string;
+  label: string;
+  properties: SectionProperty[];
+}

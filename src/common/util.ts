@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import { Request } from 'express';
+import { FieldProperty, SectionProperty } from 'src/strapi-admin/interfaces';
 
 export function titleCase(str) {
     return str.toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
@@ -27,4 +28,36 @@ export function getAuthToken(req : Request): string {
         throw new BadRequestException('Authorization header is required and must be a string');
     }
     return authorization;
+}
+
+export function convertPropertiesToFields(properties : SectionProperty[]): { fields: string[]; locales: string[] } {
+  const result: { fields: string[]; locales: string[] } = {
+      fields: [],
+      locales: []
+  };
+
+  function extractFields(items: FieldProperty[], prefix = '') {
+    items.forEach(item => {
+      if (item.value === 'fields' && item.children) {
+        // Process the fields section
+        extractFields(item.children, '');
+      } else if (item.value === 'locales' && item.children) {
+        // Process the locales section
+        item.children.forEach(locale => {
+          result.locales.push(locale.value);
+        });
+      } else if (item.children && item.children.length > 0) {
+        // Has nested children - create dot notation paths
+        const currentPrefix = prefix ? `${prefix}.${item.value}` : item.value;
+        extractFields(item.children, currentPrefix);
+      } else {
+        // Leaf field - add to fields array
+        const fieldPath = prefix ? `${prefix}.${item.value}` : item.value;
+        result.fields.push(fieldPath);
+      }
+    });
+  }
+
+  extractFields(properties);
+  return result;
 }

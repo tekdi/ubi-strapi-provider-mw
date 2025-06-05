@@ -4,10 +4,10 @@ import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma.service';
 import { StrapiAdminProviderDto } from './dto/strapi-admin-provider.dto';
-import permissionsConfig from './permissions.config.json';
+import { permissionsConfig } from './permissions.config';
 import { StrapiAdminUserDto } from './dto/strapi-admin-user.dto';
-import { StrapiRegisterResponse, StrapiUserResponse } from './interfaces';
-import { getAuthToken } from 'src/common/util';
+import { FieldSubject, StrapiRegisterResponse, StrapiUserResponse } from './interfaces';
+import { convertPropertiesToFields, getAuthToken } from 'src/common/util';
 
 @Injectable()
 export class StrapiAdminService {
@@ -50,7 +50,9 @@ export class StrapiAdminService {
         );
       }
 
-      const permissions = await this.addPermissionToRole(role.id, authToken);
+      const fields = await this.getFields(authToken);
+
+      const permissions = await this.addPermissionToRole(role.id, authToken, fields);
 
       return {
         ...roleData,
@@ -100,12 +102,63 @@ export class StrapiAdminService {
     return responseData;
   }
 
-  async addPermissionToRole(roleId: string, authToken: string): Promise<any> {
+  mapFieldsForPermissions(fields: FieldSubject[]) {
+    const benefitSubject: FieldSubject | undefined = fields.find(
+      (field) => field.uid === 'api::benefit.benefit');
+
+    if (!benefitSubject) {
+      throw new HttpException(
+        'Benefit properties not found in fields',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const mappedFields = convertPropertiesToFields(benefitSubject.properties);
+
+    return mappedFields;
+  }
+
+  async getFields(authToken: string): Promise<any> {
+    const fieldsEndpoint = `${this.strapiUrl}/admin/permissions?role=`;
+
+    const response = await this.httpService.axiosRef.get(
+      fieldsEndpoint,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authToken}`,
+        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to fetch fields from Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return this.mapFieldsForPermissions(responseData.sections.collectionTypes.subjects);
+  }
+
+  async addPermissionToRole(roleId: string, authToken: string, fields : object): Promise<any> {
     const permissionsEndpoint = `${this.strapiUrl}/admin/roles/${roleId}/permissions`;
+
+    const permissionsData = permissionsConfig.map((p) => {
+      if (p.action !== 'plugin::content-manager.explorer.publish') {
+        return {
+          ...p,
+          properties: fields,
+        };
+      }
+      return p;
+    })
 
     const response = await this.httpService.axiosRef.put(
       permissionsEndpoint,
-      permissionsConfig,
+      { permissions: permissionsData },
       {
         headers: {
           'Content-Type': 'application/json',
