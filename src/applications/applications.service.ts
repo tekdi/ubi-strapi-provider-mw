@@ -1,7 +1,16 @@
-import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
+import {
+	Injectable,
+	Inject,
+	NotFoundException,
+	forwardRef,
+	BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
-import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import {
+	UpdateApplicationActionLogDto,
+	UpdateApplicationStatusDto,
+} from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { generateRandomString } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,14 +21,14 @@ import reportsConfig from '../common/reportsConfig.json';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 export interface BenefitDetail {
-  id: string;
-  documentId: string;
-  title: string;
+	id: string;
+	documentId: string;
+	title: string;
 }
 
 type ApplicationData = Record<string, any>;
 type BenefitDefinition = {
-  calculationRules: any[];
+	calculationRules: any[];
 };
 
 @Injectable()
@@ -610,10 +619,15 @@ export class ApplicationsService {
 			);
 		}
 		const strictCheck = req?.query?.strictCheck === 'true';
-		const eligibilityResult = await this.checkAndFormatEligibility(
+		const formatEligiblityPayload = await this.formatEligibility(
 			benefitDefinition,
 			application,
 			strictCheck,
+		);
+		const eligibilityResult = await this.getEligibilityRules(
+			formatEligiblityPayload?.applicationDetails,
+			formatEligiblityPayload?.eligibilityRules,
+			formatEligiblityPayload?.strictCheck,
 		);
 		let eligibilityStatus = 'ineligible'; // Default status
 		if (eligibilityResult?.eligibleUsers?.length > 0) {
@@ -632,56 +646,55 @@ export class ApplicationsService {
 	 * Prepares eligibility rules and application profile, then calls the eligibility API.
 	 * Returns the eligibility check result.
 	 */
-	async checkAndFormatEligibility(
+	async formatEligibility(
 		benefitDefinition: any,
 		application: any,
 		strictCheck: boolean,
 	) {
-		const eligibilityRules = benefitDefinition?.data?.eligibility ?? [];
-		if (Array.isArray(eligibilityRules)) {
-			eligibilityRules.forEach((rule) => {
-				if (rule && typeof rule === 'object' && 'type' in rule) { // Ensure rule is an object with a type
-					rule.type = 'userProfile';
-				}
-			});
-			const existingIds = eligibilityRules // Extract existing rule IDs to determine the next ID
-				.map((rule) => Number(rule.id))
-				.filter((id) => !isNaN(id));
-			const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1; /// Determine the next ID for new rules
-			eligibilityRules.push({ // Add a default rule for document verification
-				id: nextId,
-				type: 'userProfile',
-				description: 'All documents must be verified',
-				evidence: 'verification status',
-				criteria: {
-					id: nextId,
-					name: 'documentVerificationStatus',
-					condition: 'equals',
-					conditionValues: ['verified'],
-				},
-			});
-		}
-		const applicationDetails = { // Prepare application profile for eligibility check
-			applicationId: application?.id,
-			...(typeof application?.applicationData === 'object' &&
-			application?.applicationData !== null
-				? application.applicationData
-				: {}),
-			documentVerificationStatus: application?.documentVerificationStatus,
-		};
 		try {
-			const eligibilityData = await this.checkApplicationEligibility(
-				applicationDetails,
-				eligibilityRules,
-				strictCheck,
-			);
-			return eligibilityData;
+			const eligibilityRules = benefitDefinition?.data?.eligibility ?? [];
+			if (Array.isArray(eligibilityRules)) {
+				eligibilityRules.forEach((rule) => {
+					if (rule && typeof rule === 'object' && 'type' in rule) {
+						// Ensure rule is an object with a type
+						rule.type = 'userProfile';
+					}
+				});
+				const existingIds = eligibilityRules // Extract existing rule IDs to determine the next ID
+					.map((rule) => Number(rule.id))
+					.filter((id) => !isNaN(id));
+				const nextId =
+					existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1; /// Determine the next ID for new rules
+				eligibilityRules.push({
+					// Add a default rule for document verification
+					id: nextId,
+					type: 'userProfile',
+					description: 'All documents must be verified',
+					evidence: 'verification status',
+					criteria: {
+						id: nextId,
+						name: 'documentVerificationStatus',
+						condition: 'equals',
+						conditionValues: ['verified'],
+					},
+				});
+			}
+			const applicationDetails = {
+				// Prepare application profile for eligibility check
+				applicationId: application?.id,
+				...(typeof application?.applicationData === 'object' &&
+				application?.applicationData !== null
+					? application.applicationData
+					: {}),
+				documentVerificationStatus: application?.documentVerificationStatus,
+			};
+			return { applicationDetails, eligibilityRules, strictCheck };
 		} catch (err) {
-			throw new Error('Error checking and formatting eligibility');
+			throw new Error('Error formatting eligibility');
 		}
 	}
 
-	async checkApplicationEligibility(
+	async getEligibilityRules(
 		userInfo: object,
 		eligibilityData: Array<any>,
 		strictCheck: boolean,
@@ -709,4 +722,4 @@ export class ApplicationsService {
 			throw new Error(`Error checking benefits eligibility: ${error.message}`);
 		}
 	}
-};
+}
