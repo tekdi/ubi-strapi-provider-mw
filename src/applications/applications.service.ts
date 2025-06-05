@@ -593,7 +593,7 @@ export class ApplicationsService {
 	}
 
 	async checkEligibility(applicationId: number, req) {
-		const application = await this.findOne(applicationId);
+		const application = await this.findOne(applicationId); // Fetch the application by ID
 
 		if (!application) {
 			throw new NotFoundException(
@@ -615,9 +615,9 @@ export class ApplicationsService {
 			application,
 			strictCheck,
 		);
-		let eligibilityStatus = 'ineligible';
+		let eligibilityStatus = 'ineligible'; // Default status
 		if (eligibilityResult?.eligibleUsers?.length > 0) {
-			eligibilityStatus = 'eligible';
+			eligibilityStatus = 'eligible'; // Set to eligible if any users are eligible default we sending one application here
 		}
 		await this.update(applicationId, {
 			eligibilityStatus,
@@ -640,15 +640,15 @@ export class ApplicationsService {
 		const eligibilityRules = benefitDefinition?.data?.eligibility ?? [];
 		if (Array.isArray(eligibilityRules)) {
 			eligibilityRules.forEach((rule) => {
-				if (rule && typeof rule === 'object' && 'type' in rule) {
+				if (rule && typeof rule === 'object' && 'type' in rule) { // Ensure rule is an object with a type
 					rule.type = 'userProfile';
 				}
 			});
-			const existingIds = eligibilityRules
+			const existingIds = eligibilityRules // Extract existing rule IDs to determine the next ID
 				.map((rule) => Number(rule.id))
 				.filter((id) => !isNaN(id));
-			const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-			eligibilityRules.push({
+			const nextId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1; /// Determine the next ID for new rules
+			eligibilityRules.push({ // Add a default rule for document verification
 				id: nextId,
 				type: 'userProfile',
 				description: 'All documents must be verified',
@@ -661,7 +661,7 @@ export class ApplicationsService {
 				},
 			});
 		}
-		const applicationDetails = {
+		const applicationDetails = { // Prepare application profile for eligibility check
 			applicationId: application?.id,
 			...(typeof application?.applicationData === 'object' &&
 			application?.applicationData !== null
@@ -687,9 +687,9 @@ export class ApplicationsService {
 		strictCheck: boolean,
 	): Promise<any> {
 		try {
-			let eligibilityApiEnd = 'check-users-eligibility';
+			let eligibilityApiEnd = 'check-users-eligibility'; // Default endpoint
 			if (strictCheck) {
-				eligibilityApiEnd = 'check-users-eligibility?strictChecking=true';
+				eligibilityApiEnd = 'check-users-eligibility?strictChecking=true'; // Use strict checking endpoint
 			}
 			const eligibilityApiUrl = `${this.eligibility_base_uri}/${eligibilityApiEnd}`;
 			const sdkResponse = await this.httpService.axiosRef.post(
