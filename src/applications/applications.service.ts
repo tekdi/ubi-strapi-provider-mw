@@ -562,14 +562,14 @@ export class ApplicationsService {
 		try {
 			// Basic parser for comparison operators
 			const comparisons = expr.match(
-				/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g,
+				/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"\\]*"|'[^'\\]*')/g,
 			);
 
 			if (!comparisons) return false;
 
 			return comparisons.every((part) => {
 				const [, key, op, rawVal] =
-					part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
+				part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"\\]*"|'[^'\\]*'|[a-zA-Z0-9_]+)/) ?? [];
 				let actual = context[key];
 				let expected: any = rawVal;
 
