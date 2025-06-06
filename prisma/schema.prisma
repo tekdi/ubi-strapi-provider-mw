@@ -28,6 +28,10 @@ model Applications {
   updatedBy        Int?
   actionLog        Json?
   calculationsProcessedAt      DateTime?
+  documentVerificationStatus String?
+  eligibilityStatus String? @default("pending")
+  eligibilityResult Json?
+  eligibilityCheckedAt DateTime?
   applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
   createdAt        DateTime           @default(now()) // Automatically set on creation
   updatedAt        DateTime           @updatedAt // Automatically updated on modification
