@@ -177,7 +177,7 @@ export class ApplicationsController {
 
 	@Get('check-eligibility/:id')
 	@ApiBasicAuth('access-token')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async isEligible(@Param('id') id: string, @Req() req: Request) {
 		return this.applicationsService.checkEligibility(Number(id), req);
 	}
