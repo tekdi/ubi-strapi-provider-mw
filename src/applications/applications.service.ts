@@ -7,12 +7,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
-import {
-	UpdateApplicationActionLogDto,
-	UpdateApplicationStatusDto,
-} from './dto/update-application-status.dto';
+import { Request } from 'express';
+import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-import { generateRandomString } from '../common/util';
+import { generateRandomString, getAuthToken } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -20,6 +18,7 @@ import { BenefitsService } from 'src/benefits/benefits.service';
 import reportsConfig from '../common/reportsConfig.json';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+
 export interface BenefitDetail {
 	id: string;
 	documentId: string;
@@ -27,9 +26,6 @@ export interface BenefitDetail {
 }
 
 type ApplicationData = Record<string, any>;
-type BenefitDefinition = {
-	calculationRules: any[];
-};
 
 @Injectable()
 export class ApplicationsService {
@@ -128,79 +124,50 @@ export class ApplicationsService {
 	}
 
 	// Get all applications with benefit details
-	async findAll(listDto: ListApplicationsDto) {
+	async findAll(listDto: ListApplicationsDto, req: Request) {
+		const authToken = getAuthToken(req);
 		const applications = await this.prisma.applications.findMany({
 			where: {
-				benefitId: listDto.benefitId,
+				benefitId: listDto.benefitId
 			},
 		});
 
 		// Enrich applications with benefit details
 		let benefit: BenefitDetail | null = null;
 		try {
-			const benefitDetail = await this.benefitsService.getBenefitsById(
-				`${listDto.benefitId}`,
-			);
+			const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(`${listDto.benefitId}`, authToken);
 			benefit = {
 				id: benefitDetail?.data?.data?.id,
 				documentId: benefitDetail?.data?.data?.documentId,
 				title: benefitDetail?.data?.data?.title,
-			};
+			}
 		} catch (error) {
-			console.error(
-				`Error fetching benefit details for application22:`,
-				error.message,
-			);
+			console.error(`Error fetching benefit details for application:`, error.message);
 		}
 
 		return { applications, benefit };
 	}
 
 	// Get a single application by ID
-	async findOne(id: number) {
+	async findOne(id: number, req: Request) {
+		const authToken = getAuthToken(req);
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
-				applicationFiles: true,
-			},
+				applicationFiles: true
+			}
 		});
 		if (!application) {
 			throw new NotFoundException('Applications not found');
 		}
 
-		// Add base64 file content to each applicationFile
-		if (
-			application.applicationFiles &&
-			Array.isArray(application.applicationFiles)
-		) {
-			application.applicationFiles = application.applicationFiles.map(
-				(file) => {
-					if (file.filePath) {
-						const absPath = path.isAbsolute(file.filePath)
-							? file.filePath
-							: path.join(process.cwd(), file.filePath);
-						if (fs.existsSync(absPath)) {
-							const fileBuffer = fs.readFileSync(absPath);
-							const base64Content = fileBuffer.toString('base64');
-							return { ...file, fileContent: base64Content };
-						}
-					}
-					return { ...file, fileContent: null };
-				},
-			);
-		}
-
 		let benefitDetails;
 		try {
-			benefitDetails = await this.benefitsService.getBenefitsById(
-				`${application.benefitId}`,
-			);
+			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
 		} catch (error) {
-			console.error(
-				`Error fetching benefit details for application22:`,
-				error.message,
-			);
+			console.error(`Error fetching benefit details for application:`, error.message);
 		}
+
 		if (application) {
 			(application as any).benefitDetails = {
 				id: benefitDetails?.data?.data?.id,
@@ -210,6 +177,15 @@ export class ApplicationsService {
 		}
 
 		return application;
+	}
+
+	async findUniqueApplication(id: number) {
+		return await this.prisma.applications.findUnique({
+			where: { id },
+			include: {
+				applicationFiles: true
+			}
+		});
 	}
 
 	async find(where: Prisma.ApplicationsWhereInput) {
@@ -294,6 +270,7 @@ export class ApplicationsService {
 		});
 	}
 
+
 	async exportApplicationsCsv(
 		benefitId: string,
 		reportType: string,
@@ -307,7 +284,7 @@ export class ApplicationsService {
 			autoGenerateFields = [],
 			applicationDataColumnDataFields = [],
 			calculatedAmountColumnDataFields = [],
-			applicationTableDataFields = [],
+			applicationTableDataFields = []
 		} = reportConfig;
 
 		const applications = await this.fetchApplications(benefitId);
@@ -329,7 +306,7 @@ export class ApplicationsService {
 			...autoGenerateFields,
 			...finalAppDataFields,
 			...finalCalcAmountFields,
-			...applicationTableDataFields,
+			...applicationTableDataFields
 		];
 
 		const csvRows = [headerFields.join(',')];
@@ -339,7 +316,7 @@ export class ApplicationsService {
 				...this.generateAutoFields(autoGenerateFields, index),
 				...this.generateAppDataFields(app, finalAppDataFields),
 				...this.generateCalcAmountFields(app, finalCalcAmountFields),
-				...this.generateAppTableFields(app, applicationTableDataFields),
+				...this.generateAppTableFields(app, applicationTableDataFields)
 			];
 			csvRows.push(this.escapeCsvRow(row));
 		}
@@ -354,15 +331,10 @@ export class ApplicationsService {
 			return await this.prisma.applications.findMany({
 				where: {
 					benefitId,
-					// status: {
-					// 	notIn: ['rejected', 'Rejected', 'pending', 'Pending', 'reject'],
-					// },
 				},
 			});
 		} catch (error) {
-			throw new BadRequestException(
-				`Failed to fetch applications: ${error.message}`,
-			);
+			throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
 		}
 	}
 
@@ -370,7 +342,7 @@ export class ApplicationsService {
 		apps: any[],
 		fields: string[],
 		source: 'applicationData' | 'calculatedAmount',
-		excludeFields: string[] = [],
+		excludeFields: string[] = []
 	): string[] {
 		if (!Array.isArray(fields)) return [];
 
@@ -380,7 +352,7 @@ export class ApplicationsService {
 		for (const app of apps) {
 			const sourceData = app[source];
 			if (sourceData && typeof sourceData === 'object') {
-				Object.keys(sourceData).forEach((key) => {
+				Object.keys(sourceData).forEach(key => {
 					if (!excludeFields.includes(key)) {
 						keySet.add(key);
 					}
@@ -392,38 +364,31 @@ export class ApplicationsService {
 			return Array.from(keySet).sort((a, b) => a.localeCompare(b));
 		}
 
-		return fields.filter((field) => !excludeFields.includes(field));
+		return fields.filter(field => !excludeFields.includes(field));
 	}
 
-	private generateAutoFields(
-		fields: string[],
-		index: number,
-	): (string | number)[] {
-		return fields.map((field) => (field === 'serialNumber' ? index + 1 : ''));
+	private generateAutoFields(fields: string[], index: number): (string | number)[] {
+		return fields.map(field => field === 'serialNumber' ? index + 1 : '');
 	}
 
 	private generateAppDataFields(app: any, fields: string[]): string[] {
-		return fields.map((field) => {
+		return fields.map(field => {
 			if (field === 'otr') return app.applicationData?.nspOtr ?? '';
-			if (field === 'aadhaar')
-				return app.applicationData?.aadhaar?.slice(-4) ?? '';
+			if (field === 'aadhaar') return app.applicationData?.aadhaar?.slice(-4) ?? '';
 			return app.applicationData?.[field] ?? '';
 		});
 	}
 
 	private generateCalcAmountFields(app: any, fields: string[]): any[] {
 		const calcAmountData = app.calculatedAmount ?? {};
-		return fields.map((field) => {
+		return fields.map(field => {
 			const value = calcAmountData[field];
 			return value ?? '';
 		});
 	}
 
-	private generateAppTableFields(
-		app: any,
-		fields: string[],
-	): (string | number)[] {
-		return fields.map((field) => {
+	private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
+		return fields.map(field => {
 			if (field === 'amount') return app.finalAmount ?? '';
 			if (field === 'applicationId') return app.id ?? '';
 			return app[field] ?? '';
@@ -431,44 +396,36 @@ export class ApplicationsService {
 	}
 
 	private escapeCsvRow(row: (string | number)[]): string {
-		return row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(',');
+		return row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
 	}
 
 	// Get a single application by ID
-	async calculateBenefit(id: number) {
+	async calculateBenefit(id: number, authToken: string) {
 		const application = await this.prisma.applications.findUnique({
-			where: { id },
+			where: { id }
 		});
 
 		if (!application) {
 			throw new NotFoundException('Applications not found');
 		}
 
-		let benefitDetails;
-		try {
-			benefitDetails = await this.benefitsService.getBenefitsById(
-				`${application.benefitId}`,
-			);
-		} catch (error) {
-			throw new NotFoundException('Benefit not found');
+		const benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
+
+		if (!benefitDetails?.data?.data) {
+			throw new NotFoundException('Benefit details not found');
 		}
 
 		let amounts;
-		amounts = await this.doBenefitCalculations(
-			application.applicationData,
-			benefitDetails?.data?.data,
-		);
+		amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
 		try {
 			await this.update(id, {
 				calculatedAmount: amounts,
 				finalAmount: `${amounts?.totalPayout}`,
-				calculationsProcessedAt: new Date(),
-			});
+				calculationsProcessedAt: new Date()
+			})
 		} catch (err) {
-			console.error(
-				`Error updating benefit details for application: ${id}`,
-				err.message,
-			);
+			console.error(`Error updating benefit details for application: ${id}`, err.message);
+			throw new BadRequestException(`Failed to update benefit details for application ${id}`);
 		}
 		return amounts;
 	}
@@ -484,29 +441,25 @@ export class ApplicationsService {
 			let amount = 0;
 
 			switch (rule.type) {
-				case 'fixed':
+				case "fixed":
 					amount = rule.fixedValue ?? 0;
 					break;
 
-				case 'lookup': {
+				case "lookup": {
 					const inputVal = applicationData[rule.inputFields[0]];
-					const found = rule.lookupTable.find(
-						(row: any) => row.match === inputVal,
-					);
+					const found = rule.lookupTable.find((row: any) => row.match === inputVal);
 					amount = found ? found.amount : 0;
 					break;
 				}
 
-				case 'conditional': {
+				case "conditional": {
 					for (const condition of rule.conditions) {
 						const matches = condition.ifExpr
 							? this.evaluateIfExpr(condition.ifExpr, applicationData)
-							: Object.entries(condition.if).every(
-									([k, v]) => applicationData[k] === v,
-								);
+							: Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
 
 						if (matches) {
-							if (condition.then.amount === 'value') {
+							if (condition.then.amount === "value") {
 								amount = Number(applicationData[rule.inputFields[0]]) || 0;
 							} else {
 								amount = Number(condition.then.amount) || 0;
@@ -517,7 +470,7 @@ export class ApplicationsService {
 					break;
 				}
 
-				case 'formula':
+				case "formula":
 					amount = this.evaluateFormula(rule.formula, applicationData);
 					break;
 
@@ -541,16 +494,15 @@ export class ApplicationsService {
 		try {
 			// Replace variable names in the formula with actual values
 			const safeExpr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
-				return typeof context[match] !== 'undefined' ? context[match] : '0';
+				return typeof context[match] !== "undefined" ? context[match] : "0";
 			});
 
 			// Only allow safe characters
-			if (!/^[\d\s+\-*/().]+$/.test(safeExpr))
-				throw new Error('Unsafe formula');
+			if (!/^[\d\s+\-*/().]+$/.test(safeExpr)) throw new Error("Unsafe formula");
 
 			return Function(`"use strict"; return (${safeExpr})`)(); // evaluated safely
 		} catch (err) {
-			console.error('Formula evaluation error:', err.message);
+			console.error("Formula evaluation error:", err.message);
 			return 0;
 		}
 	}
@@ -561,48 +513,38 @@ export class ApplicationsService {
 	evaluateIfExpr(expr: string, context: ApplicationData): boolean {
 		try {
 			// Basic parser for comparison operators
-			const comparisons = expr.match(
-				/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"\\]*"|'[^'\\]*')/g,
-			);
+			const comparisons = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g);
 
 			if (!comparisons) return false;
 
-			return comparisons.every((part) => {
-				const [, key, op, rawVal] =
-				part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"\\]*"|'[^'\\]*'|[a-zA-Z0-9_]+)/) ?? [];
+			return comparisons.every(part => {
+				const [, key, op, rawVal] = part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
 				let actual = context[key];
 				let expected: any = rawVal;
 
-				if (expected === 'true') expected = true;
-				else if (expected === 'false') expected = false;
+				if (expected === "true") expected = true;
+				else if (expected === "false") expected = false;
 				else if (!isNaN(Number(expected))) expected = Number(expected);
-				else expected = expected.replace(/^['"]|['"]$/g, '');
+				else expected = expected.replace(/^['"]|['"]$/g, "");
 
 				switch (op) {
-					case '===':
-						return actual === expected;
-					case '!==':
-						return actual !== expected;
-					case '>':
-						return actual > expected;
-					case '<':
-						return actual < expected;
-					case '>=':
-						return actual >= expected;
-					case '<=':
-						return actual <= expected;
-					default:
-						return false;
+					case "===": return actual === expected;
+					case "!==": return actual !== expected;
+					case ">": return actual > expected;
+					case "<": return actual < expected;
+					case ">=": return actual >= expected;
+					case "<=": return actual <= expected;
+					default: return false;
 				}
 			});
 		} catch (err) {
-			console.error('Expression evaluation error:', err.message);
+			console.error("Expression evaluation error:", err.message);
 			return false;
 		}
 	}
 
-	async checkEligibility(applicationId: number, req) {
-		const application = await this.findOne(applicationId); // Fetch the application by ID
+	async checkEligibility(applicationId: number, req: Request) {
+		const application = await this.findOne(applicationId,req); // Fetch the application by ID
 
 		if (!application) {
 			throw new NotFoundException(
@@ -612,6 +554,7 @@ export class ApplicationsService {
 
 		const benefitDefinition = await this.benefitsService.getBenefitsById(
 			`${application.benefitId}`,
+			req
 		);
 		if (!benefitDefinition?.data) {
 			throw new NotFoundException(

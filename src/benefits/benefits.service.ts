@@ -7,13 +7,14 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.contants';
+import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.constants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { generateRandomString, titleCase } from 'src/common/util';
+import { generateRandomString, getAuthToken, titleCase } from 'src/common/util';
 import { PrismaService } from '../prisma.service';
 import { ApplicationsService } from 'src/applications/applications.service';
 import { InitRequestDto } from './dto/init-request.dto';
@@ -63,7 +64,8 @@ export class BenefitsService {
     }
   }
 
-  async getBenefits(req: Request, body: SearchBenefitsDto): Promise<any> {
+  async getBenefits(body: SearchBenefitsDto, req: Request): Promise<any> {
+    const authToken = getAuthToken(req);
     const page = body?.page ?? '1';
     const pageSize = body?.pageSize ?? '100';
     const sort = body?.sort ?? 'createdAt:desc';
@@ -89,7 +91,7 @@ export class BenefitsService {
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: req.headers['authorization'] ?? req.headers['Authorization'],
+      Authorization: authToken,
     };
 
     const response = await this.httpService.axiosRef.get(url, {
@@ -140,13 +142,13 @@ export class BenefitsService {
     return response.data;
   }
 
-  async getBenefitsByIdStrapi(id: string): Promise<any> {
+  async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
     const response = await this.httpService.axiosRef.get(
       `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.strapiToken}`,
+          Authorization: authToken ?? `Bearer ${this.strapiToken}`,
         },
       },
     );
@@ -154,9 +156,10 @@ export class BenefitsService {
     return response;
   }
 
-  async getBenefitsById(id: string): Promise<any> {
+  async getBenefitsById(id: string, req: Request): Promise<any> {
     try {
-      const response = await this.getBenefitsByIdStrapi(id);
+      const authToken = getAuthToken(req);
+      const response = await this.getBenefitsByIdStrapi(id, authToken);
       return response.data;
     } catch (error) {
       if (error.isAxiosError) {
@@ -307,7 +310,10 @@ export class BenefitsService {
       const applicationId = confirmDto.message.order.items[0].id; // from frontend will be received after save application
 
       // Fetch application data from db
-      const benefit = await this.applicationsService.findOne(Number(applicationId));
+      const benefit = await this.applicationsService.findUniqueApplication(Number(applicationId));
+      if (!benefit) {
+        throw new BadRequestException('Application not found');
+      }
       const benefitData = await this.getBenefitsByIdStrapi(benefit.benefitId); // from strapi
 
       let mappedResponse;

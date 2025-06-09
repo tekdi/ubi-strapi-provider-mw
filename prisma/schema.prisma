@@ -64,3 +64,17 @@ model Users {
   createdAt   DateTime  @default(now()) // Automatically set on creation
   updatedAt   DateTime? @updatedAt // Automatically updated on modification
 }
+
+model Provider {
+  id                       Int       @id @default(autoincrement()) // Primary key auto-generated
+  catalogManagerId         String    @unique // Renamed from strapiId
+  catalogManagerDocumentId String    @unique // Renamed from strapidocumentId
+  name                     String    @unique // Unique field
+  catalogManagerCode       String    @unique // Renamed from strapiCode
+  catalogManagerRole       String[]  // Renamed from strapiRole
+  description              String    // Description field
+  createdAt                DateTime  @default(now()) // Automatically set on creation
+  updatedAt                DateTime  @updatedAt // Automatically updated on modification
+  publishedAt              DateTime? // Optional field for published timestamp
+  locale                   String?   // Optional locale field
+}
