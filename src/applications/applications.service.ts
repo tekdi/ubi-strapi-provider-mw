@@ -544,7 +544,7 @@ export class ApplicationsService {
 	}
 
 	async checkEligibility(applicationId: number, req: Request) {
-		const application = await this.findOne(applicationId,req); // Fetch the application by ID
+		const application = await this.findOne(applicationId, req); // Fetch the application by ID
 
 		if (!application) {
 			throw new NotFoundException(
@@ -633,7 +633,9 @@ export class ApplicationsService {
 			};
 			return { applicationDetails, eligibilityRules, strictCheck };
 		} catch (err) {
-			throw new Error('Error formatting eligibility');
+			throw new BadRequestException(
+				`Failed to format eligibility rules: ${err.message}. Application ID: ${application?.id}, Benefit ID: ${application?.benefitId}`
+			);
 		}
 	}
 
