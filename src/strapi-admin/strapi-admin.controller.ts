@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiBasicAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -11,9 +11,23 @@ import { StrapiAdminUserDto } from './dto/strapi-admin-user.dto';
 export class StrapiAdminController {
   constructor(private readonly strapiAdminService: StrapiAdminService) { }
 
+
+  @Get('roles')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get all roles from Strapi' ,
+    description: 'Fetches all roles from Strapi (requires super admin access)'
+  })
+  @ApiBasicAuth('access-token')
+  async getRoles(@Req() req: Request): Promise<any> {
+    return this.strapiAdminService.getRoles(req);
+  }
+
   @Post('roles')
   @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Create a new role in Strapi (requires super admin access)' })
+  @ApiOperation({
+    summary: 'Create a new role in Strapi',
+    description: 'Creates a new role in Strapi with the specified permissions (requires super admin access)'
+  })
   @ApiBasicAuth('access-token')
   async createRole(
     @Req() req: Request,
@@ -24,9 +38,9 @@ export class StrapiAdminController {
 
   @Post('users')
   @UseGuards(AuthGuard)
-  @ApiOperation({ 
-    summary: 'Create a new user in Strapi', 
-    description: 'Creates a new user in Strapi with the specified roles (requires super admin access)' 
+  @ApiOperation({
+    summary: 'Create a new user in Strapi',
+    description: 'Creates a new user in Strapi with the specified roles (requires super admin access)'
   })
   @ApiBasicAuth('access-token')
   async createUser(
