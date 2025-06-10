@@ -11,6 +11,7 @@ import { PrismaService } from './prisma.service';
 import { VerificationsModule } from './verifications/verifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApplicationStatusUpdate } from './applications/crons/calculate-benefit-amount';
+import { StrapiAdminModule } from './strapi-admin/strapi-admin.module';
 import { S3Service } from './services/cloud-service/s3.service';
 import { LocalStorageService } from './services/cloud-service/local-storage.service';
 @Module({
@@ -21,7 +22,8 @@ import { LocalStorageService } from './services/cloud-service/local-storage.serv
     ApplicationFilesModule,
     ApplicationsModule,
     AuthModule,
-    VerificationsModule
+    VerificationsModule,
+    StrapiAdminModule
   ],
   controllers: [AppController],
   providers: [
