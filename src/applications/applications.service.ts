@@ -3,12 +3,11 @@ import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
-import { generateRandomString } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
-import * as path from 'path';
 import { BenefitsService } from 'src/benefits/benefits.service';
 import reportsConfig from '../common/reportsConfig.json';
+import { IFileStorageService } from '../services/cloud-service/file-storage.interface';
+
 export interface BenefitDetail {
   id: string;
   documentId: string;
@@ -25,7 +24,9 @@ export class ApplicationsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => BenefitsService))
-    private readonly benefitsService: BenefitsService
+    private readonly benefitsService: BenefitsService,
+    @Inject('FileStorageService')
+    private fileStorageService: IFileStorageService,
   ) { }
 
   // Create a new application
@@ -62,46 +63,43 @@ export class ApplicationsService {
     });
     const applicationId = application.id;
 
-    // Prepare uploads directory
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
     // Process base64 fields
     const applicationFiles: ApplicationFiles[] = [];
     for (const { key, value } of base64Fields) {
-      // A - Process base64 fields for uploads
-      // A1.1 Generate a unique filename using applicationId, key, timestamp, and a random number
-      const randomBytes = generateRandomString(); // Generate a secure random string
-      let filename = `${applicationId}_${key}_${Date.now()}_${randomBytes}.json`;
 
-      // A1.2 Sanitize filename: remove spaces and strange characters, make lowercase for safe file storage
-      filename = filename
-        .replace(/[^a-zA-Z0-9-_.]/g, '') // keep alphanumeric, dash, underscore, dot
-        .replace(/\s+/g, '') // remove spaces
-        .toLowerCase();
-      const filePath = path.join(uploadsDir, filename);
-
-      // A2.1 - Remove base64, from start of the content
+      // A.1 - Remove base64, from start of the content
       const base64Content = value.replace(/^base64,/, '');
-      // A2.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
+      // A.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
       const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
-      // A2.3 - URL-decode to get the original content
+      // A.3 - URL-decode to get the original content
       const decodedContent = decodeURIComponent(urlEncoded);
-      fs.writeFileSync(filePath, decodedContent, 'utf-8');
+
+      // A.4 - Use fileStorageService for upload
+      let storageKey: string;
+      try {
+        storageKey = await this.fileStorageService.uploadFile(decodedContent, `applications/${applicationId}/${key}`);
+        console.log(`File uploaded to storage: ${storageKey}`);
+      } catch (err) {
+        console.error('Error uploading file to storage:', err.message);
+        throw new BadRequestException('Failed to upload file. Please try again later.');
+      }
 
       // B - Save ApplicationFiles record
-      const appFile = await this.prisma.applicationFiles.create({
-        data: {
-          storage: 'local',
-          filePath: path.relative(process.cwd(), filePath),
-          applicationId: applicationId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-      applicationFiles.push(appFile);
+      try {
+        const appFile = await this.prisma.applicationFiles.create({
+          data: {
+            storage: process.env.FILE_STORAGE_PROVIDER || 'local',
+            filePath: storageKey,
+            applicationId: applicationId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        applicationFiles.push(appFile);
+      } catch (err) {
+        console.error('Error saving ApplicationFiles record:', err.message);
+        throw new BadRequestException('Failed to save file record. Please try again later.');
+      }
     }
 
     return {
@@ -149,19 +147,19 @@ export class ApplicationsService {
 
     // Add base64 file content to each applicationFile
     if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
-      application.applicationFiles = application.applicationFiles.map(file => {
+      application.applicationFiles = await Promise.all(application.applicationFiles.map(async file => {
         if (file.filePath) {
-          const absPath = path.isAbsolute(file.filePath)
-            ? file.filePath
-            : path.join(process.cwd(), file.filePath);
-          if (fs.existsSync(absPath)) {
-            const fileBuffer = fs.readFileSync(absPath);
-            const base64Content = fileBuffer.toString('base64');
-            return { ...file, fileContent: base64Content };
+          let decodedContent: string | null = null;
+          try {
+            decodedContent = await this.fileStorageService.getFile(file.filePath);
+          } catch (err) {
+            decodedContent = null;
           }
+          const base64Content = decodedContent ? Buffer.from(decodedContent).toString('base64') : null;
+          return { ...file, fileContent: base64Content };
         }
         return { ...file, fileContent: null };
-      });
+      }));
     }
 
     let benefitDetails

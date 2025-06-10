@@ -1,6 +1,6 @@
 name: Deploy to UBA-DEV
-
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,7 +9,7 @@ jobs:
   Deploy_on_UBA_DEV:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: UBA-DEV  
+    environment: UBA-DEV
     steps:
       - name: Deploy Stack via SSH
         uses: appleboy/ssh-action@master
