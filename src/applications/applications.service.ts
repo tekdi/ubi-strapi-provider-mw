@@ -26,7 +26,7 @@ export class ApplicationsService {
     @Inject(forwardRef(() => BenefitsService))
     private readonly benefitsService: BenefitsService,
     @Inject('FileStorageService')
-    private fileStorageService: IFileStorageService,
+    private readonly fileStorageService: IFileStorageService,
     private readonly configService: ConfigService,
   ) { }
 
@@ -101,7 +101,7 @@ export class ApplicationsService {
       try {
         const appFile = await this.prisma.applicationFiles.create({
           data: {
-            storage: process.env.FILE_STORAGE_PROVIDER || 'local',
+            storage: process.env.FILE_STORAGE_PROVIDER ?? 'local',
             filePath: storageKey,
             applicationId: applicationId,
             createdAt: new Date(),
@@ -167,7 +167,8 @@ export class ApplicationsService {
           let decodedContent: string | null = null;
           try {
             decodedContent = await this.fileStorageService.getFile(file.filePath);
-          } catch (err) {
+          } catch (error) {
+            console.error(`Error fetching file content for application file ${file.id}:`, error.message);
             decodedContent = null;
           }
           const base64Content = decodedContent ? Buffer.from(decodedContent).toString('base64') : null;
