@@ -1,4 +1,5 @@
 import { Injectable, Inject, NotFoundException, forwardRef, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { Request } from 'express';
@@ -26,7 +27,14 @@ export class ApplicationsService {
     private readonly benefitsService: BenefitsService,
     @Inject('FileStorageService')
     private fileStorageService: IFileStorageService,
+    private readonly configService: ConfigService,
   ) { }
+
+  // Helper to build file path with env and timestamp
+  private buildFilePathWithEnvAndTimestamp(applicationId: string, certificateType: string): string {
+    const environment = this.configService.get<string>('S3_UPLOAD_ENV', 'local');
+    return `applications/${applicationId}/${environment}/${certificateType}`;
+  }
 
   // Create a new application
   async create(data: any) {
@@ -73,10 +81,16 @@ export class ApplicationsService {
       // A.3 - URL-decode to get the original content
       const decodedContent = decodeURIComponent(urlEncoded);
 
+      // Use simplified buildFilePathWithEnvAndTimestamp
+      const filePathWithEnv = this.buildFilePathWithEnvAndTimestamp(
+        String(applicationId),
+        key
+      );
+
       // A.4 - Use fileStorageService for upload
       let storageKey: string;
       try {
-        storageKey = await this.fileStorageService.uploadFile(decodedContent, `applications/${applicationId}/${key}`);
+        storageKey = await this.fileStorageService.uploadFile(decodedContent, filePathWithEnv);
         console.log(`File uploaded to storage: ${storageKey}`);
       } catch (err) {
         console.error('Error uploading file to storage:', err.message);
