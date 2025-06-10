@@ -6,6 +6,7 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { IFileStorageService } from './file-storage.interface';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class S3Service implements IFileStorageService {
@@ -20,8 +21,8 @@ export class S3Service implements IFileStorageService {
   async uploadFile(base64Content: string, keyPrefix: string): Promise<string> {
     const buffer = Buffer.from(base64Content, 'utf-8');
     const timestamp = new Date().toISOString().replace(/:/g, '-');
-    // Generate a short random string (8 alphanumeric chars)
-    const shortId = Math.random().toString(36).substring(2, 10);
+    // Generate a URL-safe random string (12 hex chars, 48 bits of randomness)
+    const shortId = crypto.randomBytes(6).toString('hex');
     const key = `${keyPrefix}/${timestamp}-${shortId}.json`;
 
     const input: PutObjectCommandInput = {
