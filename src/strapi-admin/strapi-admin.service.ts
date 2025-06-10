@@ -35,7 +35,7 @@ export class StrapiAdminService {
       const authToken = getAuthToken(req);
       const roles = await this.getCatalogRoles(authToken);
       return roles;
-    } catch (error) { 
+    } catch (error) {
       console.error('Error fetching roles:', error);
       if (error.isAxiosError) {
         throw new HttpException(
@@ -339,7 +339,7 @@ export class StrapiAdminService {
     const responseData = response?.data?.data;
     if (!responseData) {
       throw new HttpException(
-        'Failed to create role in Strapi',
+        'Failed to fetch roles from Strapi',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
