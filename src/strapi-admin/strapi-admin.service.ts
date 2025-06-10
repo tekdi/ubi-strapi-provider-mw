@@ -30,6 +30,26 @@ export class StrapiAdminService {
     }
   }
 
+  async getRoles(req: Request): Promise<any> {
+    try {
+      const authToken = getAuthToken(req);
+      const roles = await this.getCatalogRoles(authToken);
+      return roles;
+    } catch (error) { 
+      console.error('Error fetching roles:', error);
+      if (error.isAxiosError) {
+        throw new HttpException(
+          error.response?.data ?? 'Failed to fetch roles',
+          error.response?.status ?? HttpStatus.BAD_REQUEST,
+        );
+      }
+      throw new HttpException(
+        error.message ?? 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async createRole(strapiAdminProviderDto: StrapiAdminProviderDto, req: Request): Promise<any> {
     const authToken = getAuthToken(req);
 
@@ -41,7 +61,7 @@ export class StrapiAdminService {
         authToken,
       );
 
-      const roleData = await this.createProvider(role);
+      const roleData = await this.createProviderInDatabase(role);
 
       if (!roleData) {
         throw new HttpException(
@@ -182,7 +202,7 @@ export class StrapiAdminService {
     return permissions;
   }
 
-  async createProvider(responseData: any): Promise<any> {
+  async createProviderInDatabase(responseData: any): Promise<any> {
     // Create a new provider in the database
     return await this.prisma.provider.create({
       data: {
@@ -296,6 +316,30 @@ export class StrapiAdminService {
     if (!responseData) {
       throw new HttpException(
         'Failed to register user in Strapi',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return responseData;
+  }
+
+  async getCatalogRoles(authToken: string): Promise<any> {
+    const rolesEndpoint = `${this.strapiUrl}/admin/roles`;
+    const response = await this.httpService.axiosRef.get(
+      rolesEndpoint,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          'authorization': `${authToken}`,
+        },
+      },
+    );
+
+    const responseData = response?.data?.data;
+    if (!responseData) {
+      throw new HttpException(
+        'Failed to create role in Strapi',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
