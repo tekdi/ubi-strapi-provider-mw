@@ -284,7 +284,7 @@ export class ApplicationsService {
 			autoGenerateFields = [],
 			applicationDataColumnDataFields = [],
 			calculatedAmountColumnDataFields = [],
-			applicationTableDataFields = []
+			applicationTableDataFields = [],
 		} = reportConfig;
 
 		const applications = await this.fetchApplications(benefitId);
@@ -306,7 +306,7 @@ export class ApplicationsService {
 			...autoGenerateFields,
 			...finalAppDataFields,
 			...finalCalcAmountFields,
-			...applicationTableDataFields
+			...applicationTableDataFields,
 		];
 
 		const csvRows = [headerFields.join(',')];
@@ -316,7 +316,7 @@ export class ApplicationsService {
 				...this.generateAutoFields(autoGenerateFields, index),
 				...this.generateAppDataFields(app, finalAppDataFields),
 				...this.generateCalcAmountFields(app, finalCalcAmountFields),
-				...this.generateAppTableFields(app, applicationTableDataFields)
+				...this.generateAppTableFields(app, applicationTableDataFields),
 			];
 			csvRows.push(this.escapeCsvRow(row));
 		}
@@ -665,6 +665,109 @@ export class ApplicationsService {
 			return sdkResponse.data;
 		} catch (error) {
 			throw new Error(`Error checking benefits eligibility: ${error.message}`);
+		}
+	}
+
+	private generateEligibilityDetailsFields(app: any, fields: string[]): string[] {
+		const eligibilityData = app.eligibilityResult ?? {};
+		// Get the application details from either eligibleUsers or ineligibleUsers
+		const applicationDetails = eligibilityData.eligibleUsers?.[0]?.details ?? 
+			eligibilityData.ineligibleUsers?.[0]?.details ?? {};
+		
+		return fields.map((field) => {
+			if (field === 'reasons') {
+				const reasons = applicationDetails.reasons?.map(r => r.reason).join('; ') ?? '';
+				return reasons;
+			}
+			return '';
+		});
+	}
+
+	private generateEligibilityFields(app: any, fields: string[]): string[] {
+		const eligibilityData = app.eligibilityResult ?? {};
+		return fields.map((field) => {
+			if (field === 'eligibleUsers') {
+				return eligibilityData.eligibleUsers?.length ? 'Yes' : 'No';
+			}
+			if (field === 'ineligibleUsers') {
+				return eligibilityData.ineligibleUsers?.length ? 'Yes' : 'No';
+			}
+			if (field === 'errors') {
+				return eligibilityData.errors?.length ? 'Yes' : 'No';
+			}
+			return '';
+		});
+	}
+
+	async exportEligibilityDetailsCsv(
+		reportType: string,
+	): Promise<string> {
+		const reportConfig = reportsConfig[reportType];
+		if (!reportConfig) {
+			throw new BadRequestException('Invalid report type');
+		}
+
+		const {
+			autoGenerateFields = [],
+			applicationDataColumnDataFields = [],
+			calculatedAmountColumnDataFields = [],
+			applicationTableDataFields = [],
+			eligibilityResultColumnDataFields = [],
+			eligibilityDetailsFields = [],
+		} = reportConfig;
+
+		const applications = await this.fetchApplicationsEligibilityResults();
+
+		const finalAppDataFields = this.resolveDynamicFields(
+			applications,
+			applicationDataColumnDataFields,
+			'applicationData',
+		);
+
+		const finalCalcAmountFields = this.resolveDynamicFields(
+			applications,
+			calculatedAmountColumnDataFields,
+			'calculatedAmount',
+			['totalPayout'],
+		);
+
+		const headerFields = [
+			...autoGenerateFields,
+			...finalAppDataFields,
+			...finalCalcAmountFields,
+			...applicationTableDataFields,
+			...(eligibilityResultColumnDataFields ?? []),
+			...(eligibilityDetailsFields ?? []),
+		];
+
+		const csvRows = [headerFields.join(',')];
+
+		for (const [index, app] of applications.entries()) {
+			const row = [
+				...this.generateAutoFields(autoGenerateFields, index),
+				...this.generateAppDataFields(app, finalAppDataFields),
+				...this.generateCalcAmountFields(app, finalCalcAmountFields),
+				...this.generateAppTableFields(app, applicationTableDataFields),
+				...(eligibilityResultColumnDataFields ? this.generateEligibilityFields(app, eligibilityResultColumnDataFields) : []),
+				...(eligibilityDetailsFields ? this.generateEligibilityDetailsFields(app, eligibilityDetailsFields) : []),
+			];
+			csvRows.push(this.escapeCsvRow(row));
+		}
+
+		return csvRows.join('\n');
+	}
+
+	async fetchApplicationsEligibilityResults(){
+		try {
+			return await this.prisma.applications.findMany({
+				where: {
+					eligibilityStatus: {
+						in: ['eligible', 'ineligible']
+					}
+				},
+			});
+		} catch (error) {
+			throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
 		}
 	}
 }

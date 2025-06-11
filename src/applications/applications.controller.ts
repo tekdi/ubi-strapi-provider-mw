@@ -35,6 +35,7 @@ import { ApplicationStatusValidationPipe } from './pipes/application-status-vali
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
+import {CsvExportEligibilityDto} from './dto/eligibility-csv-dto'
 import { getAuthToken, getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
@@ -180,5 +181,47 @@ export class ApplicationsController {
 	@UseGuards(AuthGuard)
 	async isEligible(@Param('id') id: string, @Req() req: Request) {
 		return this.applicationsService.checkEligibility(Number(id), req);
+	}
+
+
+	@Get('/reports/eligibility/csvexport')
+	@ApiBasicAuth('access-token')
+	@UseGuards(AuthGuard)
+	@ApiOperation({
+		summary: 'Export applications as CSV',
+		description:
+			'Exports applications for a given benefitId and report type as a CSV file.',
+	})
+	@ApiQuery({ name: 'benefitId', type: String, required: true })
+	@ApiQuery({ name: 'type', type: String, required: true })
+	@ApiResponse({
+		status: 200,
+		description: 'CSV file with applications data',
+		schema: { type: 'string', format: 'binary' },
+	})
+	@ApiResponse({ status: 400, description: 'Missing or invalid parameters' })
+	async eligibilitycsvexport(
+		@Query() dto: CsvExportEligibilityDto,
+		@Res() res: Response,
+	) {
+		const { type } = dto;
+		if (!type) {
+			throw new BadRequestException('type is required');
+		}
+
+		try {
+			const csv = await this.applicationsService.exportEligibilityDetailsCsv(
+				type,
+			);
+
+			res.setHeader('Content-Type', 'text/csv');
+			res.setHeader(
+				'Content-Disposition',
+				`attachment; filename="${type}_applications.csv"`,
+			);
+			res.send(csv);
+		} catch (error) {
+			throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+		}
 	}
 }
