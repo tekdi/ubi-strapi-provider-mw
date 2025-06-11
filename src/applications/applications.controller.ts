@@ -188,11 +188,10 @@ export class ApplicationsController {
 	@ApiBasicAuth('access-token')
 	@UseGuards(AuthGuard)
 	@ApiOperation({
-		summary: 'Export applications as CSV',
+		summary: 'Export applications eligibility report as CSV',
 		description:
-			'Exports applications for a given benefitId and report type as a CSV file.',
+			'Exports applications eligibility report for a given report type as a CSV file.',
 	})
-	@ApiQuery({ name: 'benefitId', type: String, required: true })
 	@ApiQuery({ name: 'type', type: String, required: true })
 	@ApiResponse({
 		status: 200,
