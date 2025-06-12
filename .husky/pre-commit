@@ -1,6 +1,22 @@
 echo ""
 echo ">>> Running pre-commit hook... <<<"
-echo "1. 🛠️  Running build dry run to check compilation..."
+
+echo "1. 🔍 Running ESLint validation on staged files..."
+
+# Run ESLint on staged files
+if npm run lint:staged; then
+  echo "✅ ESLint validation passed - no linting errors found"
+else
+  echo "❌ ESLint validation failed - please fix the linting errors"
+  echo ""
+  echo "Run 'npm run lint:check' to see all linting errors"
+  echo "Run 'npm run lint:fix' to auto-fix fixable issues"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "2. 🛠️  Running build dry run to check compilation..."
 
 # Run nest build dry run (TypeScript compilation check)
 if npm run build --silent > /dev/null 2>&1; then
@@ -12,7 +28,8 @@ if npm run build --silent > /dev/null 2>&1; then
     echo "🧹 Cleaned up build artifacts"
   fi
   
-  echo "🎉 Build validation passed - proceeding with commit!"
+  echo ""
+  echo "🎉 All validations passed - proceeding with commit!"
   exit 0
 else
   echo "❌ Build dry run failed - code has compilation errors"
