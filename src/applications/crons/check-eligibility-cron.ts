@@ -69,7 +69,9 @@ export class EligibilityStatusUpdate {
 					},
 					get: (name: string) => mockRequest.headers[name.toLowerCase()],
 					header: (name: string) => mockRequest.headers[name.toLowerCase()],
-					query: {},
+					query: {
+						strictCheck: 'true'
+					},
 					params: {},
 					body: {},
 					method: 'GET'
