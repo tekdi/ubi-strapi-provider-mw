@@ -100,5 +100,31 @@
 			"status",
 			"amount"
 		]
+	},
+	"eligibility": {
+		"autoGenerateFields": [
+			"serialNumber"
+		],
+		"applicationDataColumnDataFields": [
+			"otr",
+			"udid",
+			"disabilityType",
+			"studentType",
+			"eligibilityStatus"
+		],
+		"applicationTableDataFields": [
+			"applicationId",
+			"orderId",
+			"status",
+			"amount"
+		],
+		"eligibilityResultColumnDataFields": [
+			"eligibleUsers",
+			"ineligibleUsers",
+			"errors"
+		],
+		"eligibilityDetailsFields": [
+			"reasons"
+		]
 	}
 }
