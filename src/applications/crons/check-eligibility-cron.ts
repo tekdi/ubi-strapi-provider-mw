@@ -4,7 +4,6 @@ import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ApplicationsService } from '../applications.service';
 import { BenefitsService } from '../../benefits/benefits.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { Request } from 'express';
 import { CronJob } from 'cron';
 
