@@ -1,3 +1,5 @@
+echo "📝  Running check for commit message format..."
+
 # Get the commit message file
 commit_msg_file=$1
 
