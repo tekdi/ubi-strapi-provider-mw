@@ -1,5 +1,5 @@
 echo ""
-echo ">>> Running commit-msg hook... <<<"
+echo ">>> 🤖🧪 Running commit-msg hook... <<<"
 echo "📝 Running check for commit message format..."
 
 # Get the commit message file

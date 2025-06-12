@@ -1,5 +1,5 @@
 echo ""
-echo ">>> Running pre-commit hook... <<<"
+echo ">>> 🤖🔍 Running pre-commit hook... <<<"
 echo "1. 🛠️  Running build dry run to check compilation..."
 
 # Run nest build dry run (TypeScript compilation check)
