@@ -174,20 +174,28 @@ export class ApplicationsService {
 			application.applicationFiles &&
 			Array.isArray(application.applicationFiles)
 		) {
-			application.applicationFiles = application.applicationFiles.map(
-				(file) => {
-					if (file.filePath) {
-						const absPath = path.isAbsolute(file.filePath)
-							? file.filePath
-							: path.join(process.cwd(), file.filePath);
-						if (fs.existsSync(absPath)) {
-							const fileBuffer = fs.readFileSync(absPath);
-							const base64Content = fileBuffer.toString('base64');
-							return { ...file, fileContent: base64Content };
-						}
+			const uploadsDir = path.join(process.cwd(), 'uploads');
+			application.applicationFiles = await Promise.all(
+				application.applicationFiles.map(async (file) => {
+					if (!file.filePath) {
+						return { ...file, fileContent: null };
 					}
-					return { ...file, fileContent: null };
-				}
+
+					// Resolve path and check it's within uploads directory
+					const absPath = path.resolve(uploadsDir, file.filePath);
+					if (!absPath.startsWith(uploadsDir + path.sep)) {
+						// Reject anything escaping the uploads directory
+						return { ...file, fileContent: null };
+					}
+
+					try {
+						await fs.promises.access(absPath, fs.constants.R_OK);
+						const fileBuffer = await fs.promises.readFile(absPath);
+						return { ...file, fileContent: fileBuffer.toString('base64') };
+					} catch {
+						return { ...file, fileContent: null };
+					}
+				})
 			);
 		}
 
