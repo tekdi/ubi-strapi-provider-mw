@@ -19,9 +19,7 @@ echo ""
 echo "2. 🛠️  Running build dry run to check compilation..."
 
 # Run nest build dry run (TypeScript compilation check)
-if npm run build --silent > /dev/null 2>&1; then
-  echo "✅ Build dry run successful - code compiles without errors"
-  
+if npm run build --silent > /dev/null 2>&1; then  
   # Clean up build artifacts if they were created
   if [ -d "dist" ]; then
     rm -rf dist
@@ -30,6 +28,7 @@ if npm run build --silent > /dev/null 2>&1; then
   
   echo ""
   echo "🎉 All validations passed - proceeding with commit!"
+  echo "✅ Build dry run successful - code compiles without errors"
   exit 0
 else
   echo "❌ Build dry run failed - code has compilation errors"
