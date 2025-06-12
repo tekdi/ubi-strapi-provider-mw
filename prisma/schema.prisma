@@ -15,22 +15,26 @@ datasource db {
 }
 
 model Applications {
-  id                      Int                @id @default(autoincrement())
-  benefitId               String
-  status                  String
-  applicationData         Json // form fields saved as they are dynamic
-  customerId              String?
-  bapId                   String?
-  calculatedAmount        Json?
-  finalAmount             String?
-  orderId                 String?
-  remark                  String?
-  updatedBy               Int?
-  actionLog               Json?
-  calculationsProcessedAt DateTime?
-  applicationFiles        ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
-  createdAt               DateTime           @default(now()) // Automatically set on creation
-  updatedAt               DateTime           @updatedAt // Automatically updated on modification
+  id               Int                @id @default(autoincrement())
+  benefitId        String
+  status           String
+  applicationData  Json // form fields saved as they are dynamic
+  customerId       String?
+  bapId            String?
+  calculatedAmount Json?
+  finalAmount      String?
+  orderId          String?
+  remark           String?
+  updatedBy        Int?
+  actionLog        Json?
+  calculationsProcessedAt      DateTime?
+  documentVerificationStatus String?
+  eligibilityStatus String? @default("pending")
+  eligibilityResult Json?
+  eligibilityCheckedAt DateTime?
+  applicationFiles ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
+  createdAt        DateTime           @default(now()) // Automatically set on creation
+  updatedAt        DateTime           @updatedAt // Automatically updated on modification
 }
 
 model ApplicationFiles {
