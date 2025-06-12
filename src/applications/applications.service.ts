@@ -37,8 +37,16 @@ export class ApplicationsService {
 		private readonly httpService: HttpService,
 		private readonly configService: ConfigService,
 	) {
-		this.eligibility_base_uri =
-			this.configService.get('ELIGIBILITY_API_URL') ?? '';
+		const url = this.configService.get('ELIGIBILITY_API_URL');
+		if (!url) {
+			throw new Error('ELIGIBILITY_API_URL environment variable is required');
+		}
+		try {
+			new URL(url); // Validate URL format
+			this.eligibility_base_uri = url;
+		} catch (error) {
+			throw new Error(`Invalid ELIGIBILITY_API_URL: ${error.message}`);
+		}
 	}
 
 	// Create a new application
@@ -567,7 +575,7 @@ export class ApplicationsService {
 			application,
 			strictCheck,
 		);
-		const eligibilityResult = await this.getEligibilityRules(
+		const eligibilityResult = await this.checkApplicationEligibility(
 			formatEligiblityPayload?.applicationDetails,
 			formatEligiblityPayload?.eligibilityRules,
 			formatEligiblityPayload?.strictCheck,
@@ -639,7 +647,7 @@ export class ApplicationsService {
 		}
 	}
 
-	async getEligibilityRules(
+	async checkApplicationEligibility(
 		userInfo: object,
 		eligibilityData: Array<any>,
 		strictCheck: boolean,

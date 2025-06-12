@@ -35,7 +35,7 @@ import { ApplicationStatusValidationPipe } from './pipes/application-status-vali
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApplicationsApiDocs } from '../docs';
 import { CsvExportApplicationsDto } from './dto/csvexport-applications.dto';
-import {CsvExportEligibilityDto} from './dto/eligibility-csv-dto'
+import { CsvExportEligibilityDto } from './dto/eligibility-csv-dto';
 import { getAuthToken, getBrowserInfo } from 'src/common/util';
 
 @UseFilters(new AllExceptionsFilter())
@@ -106,16 +106,35 @@ export class ApplicationsController {
 		updateStatusDto: UpdateApplicationStatusDto,
 		@Req() req: Request,
 	) {
-		const updatedBy = req.mw_userid;
-		const ip = Array.isArray(req.headers['x-forwarded-for'])
-			? req.headers['x-forwarded-for'][0]
-			: (req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '');
+		const updatedByRaw = req.mw_userid;
+		if (!updatedByRaw) {
+			throw new BadRequestException('updatedBy header missing');
+		}
+		const updatedBy = Number(updatedByRaw);
+		if (Number.isNaN(updatedBy)) {
+			throw new BadRequestException('updatedBy must be numeric');
+		}
+
+		// Parse x-forwarded-for header, handling both string and array cases
+		const forwardedFor = req.headers['x-forwarded-for'];
+		let ip = '';
+		if (Array.isArray(forwardedFor)) {
+			ip = forwardedFor[0];
+		} else if (typeof forwardedFor === 'string') {
+			// Split on comma and take first IP if it's a comma-separated list
+			ip = forwardedFor.split(',')[0].trim();
+		}
+		// Fallback to remote address if no forwarded IP
+		if (!ip) {
+			ip = req.socket.remoteAddress ?? '';
+		}
+
 		const userAgent = req.headers['user-agent'] ?? '';
 		const { os, browser } = getBrowserInfo(userAgent);
 		return this.applicationsService.updateStatus(Number(id), updateStatusDto, {
 			os,
 			browser,
-			updatedBy: Number(updatedBy),
+			updatedBy,
 			ip,
 			updatedAt: new Date(),
 		});
@@ -141,25 +160,20 @@ export class ApplicationsController {
 		@Query() dto: CsvExportApplicationsDto,
 		@Res() res: Response,
 	) {
-		const { benefitId, type } = dto;
-		if (!benefitId || !type) {
-			throw new BadRequestException('benefitId and type are required');
-		}
-
 		try {
 			const csv = await this.applicationsService.exportApplicationsCsv(
-				benefitId,
-				type,
+				dto.benefitId,
+				dto.type,
 			);
 
 			res.setHeader('Content-Type', 'text/csv');
 			res.setHeader(
 				'Content-Disposition',
-				`attachment; filename="${type}_applications.csv"`,
+				`attachment; filename="${dto.type}_applications.csv"`,
 			);
 			res.send(csv);
 		} catch (error) {
-			throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+			throw new BadRequestException(error.message);
 		}
 	}
 
@@ -216,7 +230,7 @@ export class ApplicationsController {
 			res.setHeader('Content-Type', 'text/csv');
 			res.setHeader(
 				'Content-Disposition',
-				`attachment; filename="${type}_applications.csv"`,
+				`attachment; filename="${type}_eligibility.csv"`,
 			);
 			res.send(csv);
 		} catch (error) {
