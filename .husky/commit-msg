@@ -15,6 +15,7 @@ regex="^(fix|ref|Issue|Task|Bug|Feature)\s*#?[0-9]*\s(chore|feat|fix|test):\s"
 # Check if commit message matches the pattern
 if echo "$commit_msg" | grep -qE "$regex"; then
   echo "✅ Commit message format is valid"
+  echo ">>>"
   exit 0
 else
   echo "❌ Invalid commit message format!"
@@ -31,6 +32,6 @@ else
   echo "  - Task #234 feat: Add new form for product"
   echo "  - Bug #345 fix: Order page not loading"
   echo "  - Feature #234 feat: Add new form for product"
-  echo ""
+  echo ">>>"
   exit 1
 fi 
