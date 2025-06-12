@@ -141,6 +141,7 @@ export class ApplicationsController {
 	}
 
 	@Get('/reports/csvexport')
+	@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
 	@ApiBasicAuth('access-token')
 	@UseGuards(AuthGuard)
 	@ApiOperation({
@@ -199,17 +200,18 @@ export class ApplicationsController {
 
 
 	@Get('/reports/eligibility/csvexport')
+	@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
 	@ApiBasicAuth('access-token')
 	@UseGuards(AuthGuard)
 	@ApiOperation({
-		summary: 'Export applications eligibility report as CSV',
+		summary: 'Export eligibility report as CSV',
 		description:
-			'Exports applications eligibility report for a given report type as a CSV file.',
+			'Exports eligibility report for a given report type as a CSV file.',
 	})
 	@ApiQuery({ name: 'type', type: String, required: true })
 	@ApiResponse({
 		status: 200,
-		description: 'CSV file with applications data',
+		description: 'CSV file with eligibility data',
 		schema: { type: 'string', format: 'binary' },
 	})
 	@ApiResponse({ status: 400, description: 'Missing or invalid parameters' })
@@ -217,24 +219,19 @@ export class ApplicationsController {
 		@Query() dto: CsvExportEligibilityDto,
 		@Res() res: Response,
 	) {
-		const { type } = dto;
-		if (!type) {
-			throw new BadRequestException('type is required');
-		}
-
 		try {
 			const csv = await this.applicationsService.exportEligibilityDetailsCsv(
-				type,
+				dto.type,
 			);
 
 			res.setHeader('Content-Type', 'text/csv');
 			res.setHeader(
 				'Content-Disposition',
-				`attachment; filename="${type}_eligibility.csv"`,
+				`attachment; filename=eligibility-${dto.type}.csv`,
 			);
 			res.send(csv);
 		} catch (error) {
-			throw new BadRequestException(`Failed to generate CSV: ${error.message}`);
+			throw new BadRequestException(error.message);
 		}
 	}
 }
