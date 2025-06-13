@@ -168,7 +168,6 @@ export class BenefitsService {
       const response = await this.getBenefitsByIdStrapi(id, authToken);
       return response.data;
     } catch (error) {
-      console.error('Error fetching benefit by ID:', error?.response);
       if (error.isAxiosError) {
         // Handle AxiosError and rethrow as HttpException
         throw new HttpException(
