@@ -12,6 +12,7 @@ import { VerificationsModule } from './verifications/verifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApplicationStatusUpdate } from './applications/crons/calculate-benefit-amount';
 import { StrapiAdminModule } from './strapi-admin/strapi-admin.module';
+import { EligibilityStatusUpdate } from './applications/crons/check-eligibility-cron';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -27,7 +28,8 @@ import { StrapiAdminModule } from './strapi-admin/strapi-admin.module';
   providers: [
     AppService,
     PrismaService,
-    ApplicationStatusUpdate
+    ApplicationStatusUpdate,
+    EligibilityStatusUpdate
   ],
 })
 export class AppModule {

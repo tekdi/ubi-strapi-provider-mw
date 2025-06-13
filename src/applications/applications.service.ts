@@ -169,6 +169,36 @@ export class ApplicationsService {
 			throw new NotFoundException('Applications not found');
 		}
 
+		// Add base64 file content to each applicationFile
+		if (
+			application.applicationFiles &&
+			Array.isArray(application.applicationFiles)
+		) {
+			const uploadsDir = path.join(process.cwd(), 'uploads');
+			application.applicationFiles = await Promise.all(
+				application.applicationFiles.map(async (file) => {
+					if (!file.filePath) {
+						return { ...file, fileContent: null };
+					}
+
+					// Resolve path and check it's within uploads directory
+					const absPath = path.resolve(uploadsDir, file.filePath);
+					if (!absPath.startsWith(uploadsDir + path.sep)) {
+						// Reject anything escaping the uploads directory
+						return { ...file, fileContent: null };
+					}
+
+					try {
+						await fs.promises.access(absPath, fs.constants.R_OK);
+						const fileBuffer = await fs.promises.readFile(absPath);
+						return { ...file, fileContent: fileBuffer.toString('base64') };
+					} catch {
+						return { ...file, fileContent: null };
+					}
+				})
+			);
+		}
+
 		let benefitDetails;
 		try {
 			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);

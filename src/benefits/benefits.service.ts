@@ -143,11 +143,10 @@ export class BenefitsService {
   }
 
   async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
-    console.log(`Fetching benefit with ID: ${authToken}`);
     let url = `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`;
+
     if (authToken) {
       url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
-      console.log(`Fetching benefit with ID: ${id} using auth token`);
     }
 
     const response = await this.httpService.axiosRef.get(
@@ -188,12 +187,12 @@ export class BenefitsService {
 
   async searchBenefits(searchRequest: SearchRequestDto,authToken?: string): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
-      
       let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
-      if (authToken) {
+      
+      // if (authToken) {
         // url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
-       
-      }
+      //}
+
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
         url,
