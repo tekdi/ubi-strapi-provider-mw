@@ -34,7 +34,10 @@ export class BenefitsService {
   private bapId: string;
   private bapUri: string;
   private readonly urlExtension: string =
-    '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*&populate[benefitCalculationRules]=*&populate[created_by]=*';
+    '?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*&populate[benefitCalculationRules]=*&populate[createdBy]=*';
+
+  private readonly contentManagerUrlExtension: string =
+    '?populate=*';
 
   constructor(
     private readonly httpService: HttpService,
@@ -144,9 +147,11 @@ export class BenefitsService {
 
   async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
     let url = `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`;
+    console.log('Public API URL:', url);
 
     if (authToken) {
-      url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
+      url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}?populate=*`;
+      console.log('Content Manager URL:', url);
     }
 
     const response = await this.httpService.axiosRef.get(

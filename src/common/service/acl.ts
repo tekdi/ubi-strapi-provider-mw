@@ -33,18 +33,18 @@ export class AclService {
      * @param benefitId - The ID of the benefit
      * @returns Object containing benefit data
      */
-    private async getBenefitData(benefitId: string, userId: string): Promise<any> {
+    private async getBenefitData(benefitId: string, authToken: string, userId: number): Promise<any> {
         try {
-            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, userId);    
+            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId);    
             if (!benefit?.data?.data) {
                 return null;
             }
            
             const benefitData = benefit.data.data;   
-            console.log(benefitData,'======')
+            console.log(benefitData,'============')
             return benefitData?.createdBy;
         } catch (error) {
-            console.error('Error fetching benefit data:', error);
+            console.error('Error fetching benefit data:', error.message);
             return null;
         }
     }
@@ -55,19 +55,21 @@ export class AclService {
      * @param benefitId - The ID of the benefit
      * @returns boolean indicating if user has access
      */
-    async canAccessBenefit(userId: string, benefitId: string): Promise<boolean> {
+    async canAccessBenefit(authToken: string, benefitId: string, userId: number, ): Promise<boolean> {
         
 
-        const benefitData = await this.getBenefitData(benefitId, userId);
+        const benefitData = await this.getBenefitData(benefitId,authToken,userId);
         if (!benefitData) {
             return false;
         }
        
-
+        const loginUser = await this.prisma.users.findUnique({
+            where: { id: userId },
+        })
         // TODO: Add additional benefit access rules here
         // For example, check if user has specific role for this benefit
         // or if user belongs to a group that has access to this benefit
-
+console.log(loginUser, benefitData?.data?.data)
         return true;
     }
 
@@ -77,7 +79,7 @@ export class AclService {
      * @param applicationId - The ID of the application
      * @returns boolean indicating if user has access
      */
-    async canAccessApplication(userId: string, applicationId: number): Promise<boolean> {
+    async canAccessApplication(authToken: string, applicationId: number, userId: number): Promise<boolean> {
         
 
         // Check if user owns the application
@@ -90,8 +92,8 @@ export class AclService {
         }
 
         // Check if the benefit associated with the application is accessible
-        const benefitData = await this.getBenefitData(application.benefitId, userId);
-        console.log('Full benefit response:', JSON.stringify(benefitData));
+        const benefitData = await this.getBenefitData(application.benefitId, authToken, userId);
+       
         return benefitData !== null;
     }
 }

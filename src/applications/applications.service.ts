@@ -170,10 +170,10 @@ export class ApplicationsService {
 		}
 
 		// Check if user can access this application
-		// const canAccess = await this.aclService.canAccessApplication(authToken, id);
-		// if (!canAccess) {
-		// 	throw new UnauthorizedException('You do not have permission to view this application');
-		// }
+		const canAccess = await this.aclService.canAccessApplication(authToken, id, userId);
+		if (!canAccess) {
+			throw new UnauthorizedException('You do not have permission to view this application');
+		}
 
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
