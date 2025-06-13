@@ -174,20 +174,32 @@ export class ApplicationsService {
 			application.applicationFiles &&
 			Array.isArray(application.applicationFiles)
 		) {
-			application.applicationFiles = application.applicationFiles.map(
-				(file) => {
-					if (file.filePath) {
-						const absPath = path.isAbsolute(file.filePath)
-							? file.filePath
-							: path.join(process.cwd(), file.filePath);
-						if (fs.existsSync(absPath)) {
-							const fileBuffer = fs.readFileSync(absPath);
-							const base64Content = fileBuffer.toString('base64');
-							return { ...file, fileContent: base64Content };
-						}
+			application.applicationFiles = await Promise.all(
+				application.applicationFiles.map(async (file) => {
+					if (!file.filePath) {
+						return { ...file, fileContent: null };
 					}
-					return { ...file, fileContent: null };
-				},
+
+					// Resolve safely inside uploads directory
+					const uploadsDir = path.join(process.cwd(), 'uploads');
+					// Remove any leading slashes or uploads/ prefix from filePath
+					const normalizedFilePath = file.filePath.replace(/^[\/\\]|^uploads[\/\\]/, '');
+					const absPath = path.join(uploadsDir, path.normalize(normalizedFilePath));
+
+					// Block traversal attempts
+					if (!absPath.startsWith(uploadsDir)) {
+						console.warn(`Blocked path traversal: ${absPath}`);
+						return { ...file, fileContent: null };
+					}
+
+					try {
+						const fileBuffer = await fs.promises.readFile(absPath);
+						return { ...file, fileContent: fileBuffer.toString('base64') };
+					} catch (err) {
+						console.error(`Failed to read ${absPath}:`, err.message);
+						return { ...file, fileContent: null };
+					}
+				}),
 			);
 		}
 
