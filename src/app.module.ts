@@ -12,8 +12,6 @@ import { VerificationsModule } from './verifications/verifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApplicationStatusUpdate } from './applications/crons/calculate-benefit-amount';
 import { StrapiAdminModule } from './strapi-admin/strapi-admin.module';
-import { S3Service } from './services/cloud-service/s3.service';
-import { LocalStorageService } from './services/cloud-service/local-storage.service';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -30,12 +28,6 @@ import { LocalStorageService } from './services/cloud-service/local-storage.serv
     AppService,
     PrismaService,
     ApplicationStatusUpdate,
-    {
-      provide: 'FileStorageService',
-      useClass: process.env.FILE_STORAGE_PROVIDER === 's3' ? S3Service : LocalStorageService,
-    },
-    S3Service,
-    LocalStorageService,
   ],
 })
 export class AppModule {
