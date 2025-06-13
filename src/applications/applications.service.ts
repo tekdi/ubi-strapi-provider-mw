@@ -4,6 +4,7 @@ import {
 	NotFoundException,
 	forwardRef,
 	BadRequestException,
+	UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
@@ -18,6 +19,7 @@ import { BenefitsService } from 'src/benefits/benefits.service';
 import reportsConfig from '../common/reportsConfig.json';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { AclService } from '../common/service/acl';
 
 export interface BenefitDetail {
 	id: string;
@@ -36,6 +38,7 @@ export class ApplicationsService {
 		private readonly benefitsService: BenefitsService,
 		private readonly httpService: HttpService,
 		private readonly configService: ConfigService,
+		private readonly aclService: AclService,
 	) {
 		const url = this.configService.get('ELIGIBILITY_API_URL');
 		if (!url) {
@@ -159,11 +162,24 @@ export class ApplicationsService {
 	// Get a single application by ID
 	async findOne(id: number, req: Request) {
 		const authToken = getAuthToken(req);
+		
+		// Get user from request middleware
+		const userId = (req as any).mw_userid;
+		if (!userId) {
+			throw new UnauthorizedException('User not authenticated');
+		}
+
+		// Check if user can access this application
+		// const canAccess = await this.aclService.canAccessApplication(authToken, id);
+		// if (!canAccess) {
+		// 	throw new UnauthorizedException('You do not have permission to view this application');
+		// }
+
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
-				applicationFiles: true
-			}
+				applicationFiles: true,
+			},
 		});
 		if (!application) {
 			throw new NotFoundException('Applications not found');
@@ -174,36 +190,46 @@ export class ApplicationsService {
 			application.applicationFiles &&
 			Array.isArray(application.applicationFiles)
 		) {
-			const uploadsDir = path.join(process.cwd(), 'uploads');
 			application.applicationFiles = await Promise.all(
 				application.applicationFiles.map(async (file) => {
 					if (!file.filePath) {
 						return { ...file, fileContent: null };
 					}
 
-					// Resolve path and check it's within uploads directory
-					const absPath = path.resolve(uploadsDir, file.filePath);
-					if (!absPath.startsWith(uploadsDir + path.sep)) {
-						// Reject anything escaping the uploads directory
+					// Resolve safely inside uploads directory
+					const uploadsDir = path.join(process.cwd(), 'uploads');
+					// Remove any leading slashes or uploads/ prefix from filePath
+					const normalizedFilePath = file.filePath.replace(/^[\/\\]|^uploads[\/\\]/, '');
+					const absPath = path.join(uploadsDir, path.normalize(normalizedFilePath));
+
+					// Block traversal attempts
+					if (!absPath.startsWith(uploadsDir)) {
+						console.warn(`Blocked path traversal: ${absPath}`);
 						return { ...file, fileContent: null };
 					}
 
 					try {
-						await fs.promises.access(absPath, fs.constants.R_OK);
 						const fileBuffer = await fs.promises.readFile(absPath);
 						return { ...file, fileContent: fileBuffer.toString('base64') };
-					} catch {
+					} catch (err) {
+						console.error(`Failed to read ${absPath}:`, err.message);
 						return { ...file, fileContent: null };
 					}
-				})
+				}),
 			);
 		}
 
 		let benefitDetails;
 		try {
-			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
+			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(
+				`${application.benefitId}`,
+				authToken,
+			);
 		} catch (error) {
-			console.error(`Error fetching benefit details for application:`, error.message);
+			console.error(
+				`Error fetching benefit details for application:`,
+				error.message,
+			);
 		}
 
 		if (application) {
