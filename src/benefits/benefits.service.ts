@@ -143,8 +143,14 @@ export class BenefitsService {
   }
 
   async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
+    let url = `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`;
+
+    if (authToken) {
+      url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
+    }
+
     const response = await this.httpService.axiosRef.get(
-      `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`,
+      url,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -178,11 +184,17 @@ export class BenefitsService {
     }
   }
 
-  async searchBenefits(searchRequest: SearchRequestDto): Promise<any> {
+  async searchBenefits(searchRequest: SearchRequestDto,authToken?: string): Promise<any> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
+      let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
+      
+      // if (authToken) {
+        // url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
+      //}
+
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
       const response = await this.httpService.axiosRef.get(
-        `${this.strapiUrl}/api/benefits${this.urlExtension}`,
+        url,
         {
           headers: {
             'Content-Type': 'application/json',
