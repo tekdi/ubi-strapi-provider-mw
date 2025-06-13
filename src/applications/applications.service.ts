@@ -9,7 +9,8 @@ import { getAuthToken } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
 import { BenefitsService } from 'src/benefits/benefits.service';
 import reportsConfig from '../common/reportsConfig.json';
-import { IFileStorageService } from '../services/cloud-service/file-storage.interface';
+import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
+import { Buffer } from 'buffer';
 
 export interface BenefitDetail {
   id: string;
@@ -27,13 +28,21 @@ export class ApplicationsService {
     private readonly benefitsService: BenefitsService,
     @Inject('FileStorageService')
     private readonly fileStorageService: IFileStorageService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) { }
 
   // Helper to build file path with env and timestamp
-  private buildFilePathWithEnvAndTimestamp(applicationId: string, certificateType: string): string {
-    const environment = this.configService.get<string>('S3_UPLOAD_ENV', 'local');
-    return `applications/${applicationId}/${environment}/${certificateType}`;
+  private buildFilePath(applicationId: string, certificateType: string): string {
+    const isLocal = process.env.NODE_ENV !== 'production';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    const basePath = isLocal 
+      ? `local/applications/${applicationId}`
+      : `applications/${applicationId}`;
+
+    const fileName = `${applicationId}-${certificateType}-${timestamp}.json`;
+
+    return `${basePath}/${certificateType}/${fileName}`;
   }
 
   // Create a new application
@@ -82,18 +91,20 @@ export class ApplicationsService {
       const decodedContent = decodeURIComponent(urlEncoded);
 
       // Use simplified buildFilePathWithEnvAndTimestamp
-      const filePathWithEnv = this.buildFilePathWithEnvAndTimestamp(
+      const filePathWithEnv = this.buildFilePath(
         String(applicationId),
         key
       );
 
-      // A.4 - Use fileStorageService for upload
-      let storageKey: string;
+      // A.4 - Use CloudService for upload
+      let storageKey: string | null;
       try {
-        storageKey = await this.fileStorageService.uploadFile(decodedContent, filePathWithEnv);
-        console.log(`File uploaded to storage: ${storageKey}`);
+        const contentBuffer = Buffer.from(decodedContent, 'utf-8');
+        console.log(`Uploading file to filePathWithEnv:`, filePathWithEnv);
+        storageKey = await this.fileStorageService.uploadFile(filePathWithEnv, contentBuffer);
+        console.log(`File uploaded to cloud: ${storageKey}`);
       } catch (err) {
-        console.error('Error uploading file to storage:', err.message);
+        console.error('Error uploading file to cloud:', err.message);
         throw new BadRequestException('Failed to upload file. Please try again later.');
       }
 
@@ -115,6 +126,7 @@ export class ApplicationsService {
       }
     }
 
+
     return {
       application,
       applicationFiles,
@@ -122,7 +134,7 @@ export class ApplicationsService {
   }
 
   // Get all applications with benefit details
-  async findAll(listDto: ListApplicationsDto, req : Request) {
+  async findAll(listDto: ListApplicationsDto, req: Request) {
     const authToken = getAuthToken(req);
     const applications = await this.prisma.applications.findMany({
       where: {
@@ -164,15 +176,17 @@ export class ApplicationsService {
     if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
       application.applicationFiles = await Promise.all(application.applicationFiles.map(async file => {
         if (file.filePath) {
-          let decodedContent: string | null = null;
+          let decodedContent: any;
           try {
             decodedContent = await this.fileStorageService.getFile(file.filePath);
           } catch (error) {
             console.error(`Error fetching file content for application file ${file.id}:`, error.message);
-            decodedContent = null;
+            decodedContent = '';
           }
+          if (!decodedContent) {
           const base64Content = decodedContent ? Buffer.from(decodedContent).toString('base64') : null;
-          return { ...file, fileContent: base64Content };
+            return { ...file, fileContent: base64Content };
+          }
         }
         return { ...file, fileContent: null };
       }));

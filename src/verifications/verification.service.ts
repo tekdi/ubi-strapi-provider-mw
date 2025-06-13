@@ -3,7 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { VerifyApplicationVcsResponseDto } from './dtos';
 import { PrismaService } from '../prisma.service';
-import { IFileStorageService } from '../services/cloud-service/file-storage.interface';
+import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 
 @Injectable()
 export class VerificationService {
@@ -30,7 +30,7 @@ export class VerificationService {
       // Validate that all IDs are valid numbers
       const invalidIds = applicationFileIds.filter(id => isNaN(Number(id)));
       if (invalidIds.length > 0) {
-          return this.buildResponse(false, 400, `Invalid file IDs provided: ${invalidIds.join(', ')}`, applicationId, [], 'unverified');
+        return this.buildResponse(false, 400, `Invalid file IDs provided: ${invalidIds.join(', ')}`, applicationId, [], 'unverified');
       }
       // Fetch only the specified application files
       applicationFiles = await this.getApplicationFilesByIds(applicationFileIds.map(id => Number(id)), Number(applicationId));
@@ -79,16 +79,22 @@ export class VerificationService {
       try {
         // Use fileStorageService for all storage types
         const fileContent = await this.fileStorageService.getFile(file.filePath);
+        console.log(`Verifying file: ${file.filePath}`);
 
         if (!fileContent) {
           throw new Error('Failed to read file content from storage.');
         }
 
+        // Convert Buffer to string first
+        const fileContentString = fileContent.toString();
+        console.log('fileContentString:',fileContentString);
+
         // Try to detect if the content is URL-encoded
-        let content = fileContent;
-        if (fileContent.trim().startsWith('%')) {
+        let content = fileContentString;
+        if (fileContentString.trim().startsWith('%')) {
           try {
-            content = decodeURIComponent(fileContent);
+            content = decodeURIComponent(fileContentString);
+            console.log('content:',fileContentString);
           } catch (decodeError) {
             console.error('Failed to decode URI component:', decodeError);
             throw decodeError;
@@ -140,9 +146,9 @@ export class VerificationService {
               ...(isValid ? {} : {
                 verificationErrors: response.data.errors
                   ? response.data.errors.map((err: any) => ({
-                      error: err.error,
-                      raw: err.raw,
-                    }))
+                    error: err.error,
+                    raw: err.raw,
+                  }))
                   : [{ error: 'Unknown error', raw: null }],
               }),
             },
