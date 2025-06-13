@@ -202,7 +202,7 @@ export class ApplicationsService {
             console.error(`Error fetching file content for application file ${file.id}:`, error.message);
             decodedContent = '';
           }
-          if (!decodedContent) {
+          if (decodedContent) {
           const base64Content = decodedContent ? Buffer.from(decodedContent).toString('base64') : null;
             return { ...file, fileContent: base64Content };
           }
