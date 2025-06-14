@@ -137,6 +137,16 @@ export class ApplicationsService {
 	// Get all applications with benefit details
 	async findAll(listDto: ListApplicationsDto, req: Request) {
 		const authToken = getAuthToken(req);
+
+		// Get user from request middleware
+		const userId = (req as any).mw_userid;
+
+		// Check if user can access this application
+		const canAccess = await this.aclService.canAccessBenefit(authToken, listDto.benefitId, userId);
+		if (!canAccess) {
+			throw new UnauthorizedException('You do not have permission to view this application');
+		}
+
 		const applications = await this.prisma.applications.findMany({
 			where: {
 				benefitId: listDto.benefitId
@@ -165,11 +175,8 @@ export class ApplicationsService {
 		
 		// Get user from request middleware
 		const userId = (req as any).mw_userid;
-		if (!userId) {
-			throw new UnauthorizedException('User not authenticated');
-		}
 
-		// Check if user can access this application
+		// // Check if user can access this application
 		const canAccess = await this.aclService.canAccessApplication(authToken, id, userId);
 		if (!canAccess) {
 			throw new UnauthorizedException('You do not have permission to view this application');
