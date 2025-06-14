@@ -144,21 +144,20 @@ export class BenefitsService {
 
   async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
     let url = `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`;
-  
-      if (authToken) {
-        url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
-      }
-  const response = await this.httpService.axiosRef.get(
-    url,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authToken ?? `Bearer ${this.strapiToken}`,
-      },
-    },
-  );
 
-    
+    if (authToken) {
+      url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      url,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authToken ?? `Bearer ${this.strapiToken}`,
+        },
+      },
+    );
 
     return response;
   }
