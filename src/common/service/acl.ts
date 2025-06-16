@@ -19,7 +19,7 @@ export class AclService {
         try {
             const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);     
             if (!benefit?.data?.data) {
-                return null;
+                return false;
             }
            
             const benefitData = benefit.data.data; 
@@ -29,7 +29,7 @@ export class AclService {
             });
 
             if (!loginUser) {
-                return null;
+                return false;
             }
 
             // Get the organization user details
@@ -40,7 +40,7 @@ export class AclService {
             });
 
             if (!orgUser) {
-                return null;
+                return false;
             }
 
             // Check if login user is super admin
@@ -53,7 +53,7 @@ export class AclService {
             const orgUserRoles = orgUser.s_roles || [];
             // Check if there's any common role between the users
             const hasCommonRole = loginUserRoles.some(role => orgUserRoles.includes(role));
-
+console.log(orgUserRoles, loginUserRoles, hasCommonRole)
             return hasCommonRole;
         } catch (error) {
             console.error('Error fetching benefit data:', error.message);
@@ -71,10 +71,7 @@ export class AclService {
         
 
         const benefitData = await this.getBenefitData(benefitId, authToken, userId);
-        if (!benefitData) {
-            return false;
-        }
-        return true;
+        return benefitData;
     }
 
     /**
@@ -96,6 +93,6 @@ export class AclService {
         // Check if the benefit associated with the application is accessible
         const benefitData = await this.getBenefitData(application.benefitId, authToken, userId);
        
-        return benefitData !== null;
+        return benefitData;
     }
 }
