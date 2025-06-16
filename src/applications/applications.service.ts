@@ -206,7 +206,7 @@ export class ApplicationsService {
 					// Resolve safely inside uploads directory
 					const uploadsDir = path.join(process.cwd(), 'uploads');
 					// Remove any leading slashes or uploads/ prefix from filePath
-					const normalizedFilePath = file.filePath.replace(/^[\/\\]|^uploads[\/\\]/, '');
+					const normalizedFilePath = file.filePath.replace(/^[/\\]|^uploads[/\\]/, '');
 					const absPath = path.join(uploadsDir, path.normalize(normalizedFilePath));
 
 					// Block traversal attempts
