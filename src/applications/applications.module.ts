@@ -12,7 +12,7 @@ import { AclModule } from '../common/service/acl.module';
   imports: [
     HttpModule,
     forwardRef(() => BenefitsModule),
-    AclModule
+    forwardRef(() => AclModule),
   ],
   providers: [ApplicationsService, ConfigService, PrismaService],
   exports: [ApplicationsService],

@@ -15,7 +15,7 @@ export class AclService {
      * @param benefitId - The ID of the benefit
      * @returns Object containing benefit data
      */
-    private async getBenefitData(benefitId: string, authToken: string, userId: number): Promise<any> {
+    private async getBenefitData(benefitId: string, authToken: string, userId: number): Promise<boolean> {
         try {
             const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);     
             if (!benefit?.data?.data) {
