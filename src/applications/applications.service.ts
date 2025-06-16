@@ -142,7 +142,7 @@ export class ApplicationsService {
 		const userId = (req as any).mw_userid;
 
 		// Check if user can access this application
-		const canAccess = await this.aclService.canAccessBenefit(authToken, listDto.benefitId, userId);
+		const canAccess = await this.aclService.canAccessBenefit(listDto.benefitId, authToken, userId);
 		if (!canAccess) {
 			throw new UnauthorizedException('You do not have permission to view this application');
 		}

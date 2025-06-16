@@ -8,22 +8,22 @@ export class AclService {
         private readonly prisma: PrismaService,
         @Inject(forwardRef(() => BenefitsService))
         private readonly benefitsService: BenefitsService
-    ) {}
+    ) { }
 
     /**
      * Common function to fetch benefit data
      * @param benefitId - The ID of the benefit
      * @returns Object containing benefit data
      */
-    private async getBenefitData(benefitId: string, authToken: string, userId: number): Promise<boolean> {
+    async canAccessBenefit(benefitId: string, authToken: string, userId: number): Promise<boolean> {
         try {
-            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);     
+            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);
             if (!benefit?.data?.data) {
                 return false;
             }
-           
-            const benefitData = benefit.data.data; 
-            
+
+            const benefitData = benefit.data.data;
+
             const loginUser = await this.prisma.users.findUnique({
                 where: { id: userId },
             });
@@ -33,10 +33,13 @@ export class AclService {
             }
 
             // Get the organization user details
+            const createdById = benefitData?.createdBy?.id;
+            if (!createdById) {
+                return false;
+            }
+
             const orgUser = await this.prisma.users.findFirst({
-                where: { 
-                    s_id: benefitData?.createdBy?.id.toString()
-                }
+                where: { s_id: String(createdById) },
             });
 
             if (!orgUser) {
@@ -62,19 +65,6 @@ export class AclService {
     }
 
     /**
-     * Check if a user can access a specific benefit
-     * @param userId - The ID of the user
-     * @param benefitId - The ID of the benefit
-     * @returns boolean indicating if user has access
-     */
-    async canAccessBenefit(authToken: string, benefitId: string, userId: number, ): Promise<boolean> {
-        
-
-        const benefitData = await this.getBenefitData(benefitId, authToken, userId);
-        return benefitData;
-    }
-
-    /**
      * Check if a user can access a specific application
      * @param userId - The ID of the user
      * @param applicationId - The ID of the application
@@ -91,8 +81,8 @@ export class AclService {
         }
 
         // Check if the benefit associated with the application is accessible
-        const benefitData = await this.getBenefitData(application.benefitId, authToken, userId);
-       
+        const benefitData = await this.canAccessBenefit(application.benefitId, authToken, userId);
+
         return benefitData;
     }
 }
