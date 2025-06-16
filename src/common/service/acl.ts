@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { BenefitsService } from '../../benefits/benefits.service';
 
@@ -49,15 +49,15 @@ export class AclService {
             }
 
             // Compare roles arrays to check if users are from same organization
-            const loginUserRoles = loginUser.s_roles || [];
-            const orgUserRoles = orgUser.s_roles || [];
+            const loginUserRoles = loginUser.s_roles ?? [];
+            const orgUserRoles = orgUser.s_roles ?? [];
             // Check if there's any common role between the users
             const hasCommonRole = loginUserRoles.some(role => orgUserRoles.includes(role));
-console.log(orgUserRoles, loginUserRoles, hasCommonRole)
+
             return hasCommonRole;
         } catch (error) {
             console.error('Error fetching benefit data:', error.message);
-            return null;
+            return false;
         }
     }
 
