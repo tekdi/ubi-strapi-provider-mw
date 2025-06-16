@@ -17,22 +17,44 @@ export class AclService {
      */
     private async getBenefitData(benefitId: string, authToken: string, userId: number): Promise<any> {
         try {
-            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);    
+            const benefit = await this.benefitsService.getBenefitsByIdStrapi(benefitId, authToken);     
             if (!benefit?.data?.data) {
                 return null;
             }
            
-            const benefitData = benefit.data.data;   
+            const benefitData = benefit.data.data; 
+            
             const loginUser = await this.prisma.users.findUnique({
-            where: { id: userId },
-        })
-        if (!loginUser) {
-            return null;
-        }
-        if(parseInt(loginUser?.s_id) !== parseInt(benefitData?.createdBy?.id) && !loginUser?.s_roles?.includes('Super Admin')) {
-            return null;
-        }
-            return true;
+                where: { id: userId },
+            });
+
+            if (!loginUser) {
+                return null;
+            }
+
+            // Get the organization user details
+            const orgUser = await this.prisma.users.findFirst({
+                where: { 
+                    s_id: benefitData?.createdBy?.id.toString()
+                }
+            });
+
+            if (!orgUser) {
+                return null;
+            }
+
+            // Check if login user is super admin
+            if (loginUser?.s_roles?.includes('Super Admin')) {
+                return true;
+            }
+
+            // Compare roles arrays to check if users are from same organization
+            const loginUserRoles = loginUser.s_roles || [];
+            const orgUserRoles = orgUser.s_roles || [];
+            // Check if there's any common role between the users
+            const hasCommonRole = loginUserRoles.some(role => orgUserRoles.includes(role));
+
+            return hasCommonRole;
         } catch (error) {
             console.error('Error fetching benefit data:', error.message);
             return null;

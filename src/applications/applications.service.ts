@@ -771,6 +771,7 @@ export class ApplicationsService {
 	}
 
 	async exportEligibilityDetailsCsv(
+		benefitId: string,
 		reportType: string,
 	): Promise<string> {
 		const reportConfig = reportsConfig[reportType];
@@ -787,7 +788,7 @@ export class ApplicationsService {
 			eligibilityDetailsFields = [],
 		} = reportConfig;
 
-		const applications = await this.fetchApplicationsEligibilityResults();
+		const applications = await this.fetchApplicationsEligibilityResults(benefitId);
 
 		const finalAppDataFields = this.resolveDynamicFields(
 			applications,
@@ -828,10 +829,11 @@ export class ApplicationsService {
 		return csvRows.join('\n');
 	}
 
-	async fetchApplicationsEligibilityResults(){
+	async fetchApplicationsEligibilityResults(benefitId){
 		try {
 			return await this.prisma.applications.findMany({
 				where: {
+					benefitId: benefitId,
 					eligibilityStatus: {
 						in: ['eligible', 'ineligible']
 					}
