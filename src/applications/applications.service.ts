@@ -51,19 +51,15 @@ export class ApplicationsService {
 		}
 	}
 
-	  // Helper to build file path with env and timestamp
-  private buildFilePath(applicationId: string, certificateType: string): string {
-    const isLocal = process.env.NODE_ENV !== 'production';
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
-    const basePath = isLocal 
-      ? `local/applications/${applicationId}`
-      : `applications/${applicationId}`;
-
-    const fileName = `${applicationId}-${certificateType}-${timestamp}.json`;
-
-    return `${basePath}/${certificateType}/${fileName}`;
-  }
+	// Helper to build file path with env and timestamp
+	private buildFilePath(applicationId: string, certificateType: string): string {
+		// fallback to 'local' if not set
+		const filePrefix = process.env.FILE_PREFIX_ENV ?? 'local';
+		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+		const basePath = `${filePrefix}/applications/${applicationId}`;
+		const fileName = `${applicationId}-${certificateType}-${timestamp}.json`;
+		return `${basePath}/${certificateType}/${fileName}`;
+	}
 
 	// Create a new application
 	async create(data: any) {
