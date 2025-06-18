@@ -180,8 +180,8 @@ export class ApplicationsService {
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
-				applicationFiles: true
-			}
+				applicationFiles: true,
+			},
 		});
 		if (!application) {
 			throw new NotFoundException('Applications not found');
@@ -209,9 +209,15 @@ export class ApplicationsService {
 
 		let benefitDetails;
 		try {
-			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
+			benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(
+				`${application.benefitId}`,
+				authToken,
+			);
 		} catch (error) {
-			console.error(`Error fetching benefit details for application:`, error.message);
+			console.error(
+				`Error fetching benefit details for application:`,
+				error.message,
+			);
 		}
 
 		if (application) {
