@@ -217,6 +217,13 @@ export class VerificationService {
       message = 'Verification failed';
     }
 
+    await this.prisma.applications.update({
+      where: { id: Number(applicationId) },
+      data: {
+        documentVerificationStatus: status,
+      },
+    });
+
     return this.buildResponse(allSuccessful, code, message, applicationId, files, status);
   }
 
