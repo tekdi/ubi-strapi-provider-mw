@@ -40,8 +40,8 @@ export function decrypt(encryptedValue: string): any {
 
     // Parse decrypted string back to original type
     return JSON.parse(decrypted.toString('utf8'));
-  } catch (error) {
-    console.error('Decryption failed:', error.message);
+  } catch (error) { //NOSONAR
+    console.error('Decryption failed');
     throw new Error('Failed to decrypt data');
   }
 }

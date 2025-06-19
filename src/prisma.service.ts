@@ -12,6 +12,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
     super();
 
+    // Validate encryption key is available
+    if (!process.env.ENCRYPTION_KEY) {
+      throw new Error('ENCRYPTION_KEY environment variable is required for field encryption');
+    }
+
     // Helper to decrypt fields for a given model
     function decryptModelFields(obj: any, model?: string) {
       if (!model || !encryptionMap[model]) return;
