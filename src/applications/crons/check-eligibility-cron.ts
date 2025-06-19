@@ -4,7 +4,6 @@ import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ApplicationsService } from '../applications.service';
 import { BenefitsService } from '../../benefits/benefits.service';
-import { Request } from 'express';
 import { CronJob } from 'cron';
 
 @Injectable()
@@ -49,7 +48,7 @@ export class EligibilityStatusUpdate {
 			dt.setHours(dt.getHours() - ELIGIBILITY_CHECK_LAST_PROCESS_HOURS)
 		).toISOString();
 		return this.prisma.$queryRaw<Array<{ id: number }>>`
-            SELECT id
+            SELECT *
             FROM "Applications"
             WHERE "eligibilityStatus" NOT IN ('eligible', 'ineligible')
             AND ("eligibilityCheckedAt" IS NULL OR "eligibilityCheckedAt" <= ${filterTimestamp}::timestamp)
@@ -59,25 +58,33 @@ export class EligibilityStatusUpdate {
 	}
 
 	private async processBenefits(applications: any[]) {
-		Logger.log('Processing applications:', applications);
 		for (const application of applications) {
 			try {
-				const mockRequest = {
-					headers: {
-						authorization: `Bearer ${this.strapiToken}`
-					},
-					get: (name: string) => mockRequest.headers[name.toLowerCase()],
-					header: (name: string) => mockRequest.headers[name.toLowerCase()],
-					query: {
-						strictCheck: 'true'
-					},
-					params: {},
-					body: {},
-					method: 'GET'
-				} as unknown as Request;
-				const isEligible = await this.applicationsService.checkEligibility(application?.id, mockRequest)
-				console.log(isEligible)
+				const getBenefit = await this.benefitsService.getBenefitsByIdStrapi(application?.benefitId)
+				const benefitDetails = getBenefit?.data?.data
+				if (benefitDetails) {
+					const formatEligiblityPayload = await this.applicationsService.formatEligibility(
+						benefitDetails,
+						application,
+						true
+					);
+					const eligibilityResult = await this.applicationsService.checkApplicationEligibility(
+						formatEligiblityPayload?.applicationDetails,
+						formatEligiblityPayload?.eligibilityRules,
+						formatEligiblityPayload?.strictCheck,
+					);
+					let eligibilityStatus = 'ineligible'; // Default status
+					if (eligibilityResult?.eligibleUsers?.length > 0) {
+						eligibilityStatus = 'eligible';
+					}
+					await this.applicationsService.update(application?.id, {
+						eligibilityStatus,
+						eligibilityResult: eligibilityResult,
+						eligibilityCheckedAt: new Date(),
+					});
+				}
 			} catch (err) {
+				console.log(err)
 				Logger.warn(
 					`Failed to process application ${application.id}: ${err.message}`
 				);

@@ -208,6 +208,7 @@ export class ApplicationsController {
 		description:
 			'Exports eligibility report for a given report type as a CSV file.',
 	})
+	@ApiQuery({ name: 'benefitId', type: String, required: true })
 	@ApiQuery({ name: 'type', type: String, required: true })
 	@ApiResponse({
 		status: 200,
@@ -221,6 +222,7 @@ export class ApplicationsController {
 	) {
 		try {
 			const csv = await this.applicationsService.exportEligibilityDetailsCsv(
+				dto.benefitId,
 				dto.type,
 			);
 
