@@ -12,32 +12,36 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
     super();
 
-    // Helper to recursively decrypt fields in result objects/arrays
+    // Helper to decrypt fields for a given model
+    function decryptModelFields(obj: any, model?: string) {
+      if (!model || !encryptionMap[model]) return;
+      for (const field of encryptionMap[model]) {
+        if (obj[field]) {
+          try {
+            obj[field] = decrypt(obj[field]);
+          } catch (e) {
+            console.error(`Failed to decrypt field '${field}' in model '${model}':`, e);
+          }
+        }
+      }
+    }
+
+    // Helper to find related model name from key
+    function getRelatedModel(key: string): string | undefined {
+      return Object.keys(encryptionMap).find(
+        m => m.toLowerCase() === key.toLowerCase()
+      );
+    }
+
+    // Refactored recursiveDecrypt function
     function recursiveDecrypt(obj: any, model?: string) {
       if (Array.isArray(obj)) {
         return obj.map(item => recursiveDecrypt(item, model));
       }
       if (obj && typeof obj === 'object') {
-        // Decrypt fields for this model
-        if (model && encryptionMap[model]) {
-          for (const field of encryptionMap[model]) {
-            if (obj[field]) {
-              try {
-                obj[field] = decrypt(obj[field]);
-              } catch (e) {
-                // Optionally log error
-              }
-            }
-          }
-        }
-        // Recursively decrypt nested relations
+        decryptModelFields(obj, model);
         for (const key of Object.keys(obj)) {
-          // Try to match key to a model in encryptionMap (e.g., applicationFiles, application)
-          // Prisma returns relation keys in camelCase, but model names are PascalCase
-          // So try to find a model whose lowercased name matches the key (case-insensitive)
-          const relatedModel = Object.keys(encryptionMap).find(
-            m => m.toLowerCase() === key.toLowerCase()
-          );
+          const relatedModel = getRelatedModel(key);
           if (obj[key] && relatedModel) {
             obj[key] = recursiveDecrypt(obj[key], relatedModel);
           }
@@ -46,10 +50,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       return obj;
     }
 
+    // Use Prisma middleware for encryption/decryption
     this.$use(async (params, next) => {
-      // Debug: log model name for every middleware call
-      console.log('Prisma middleware params.model:', params.model);
-
       // Encrypt before create/update
       if (['create', 'update', 'upsert'].includes(params.action)) {
         const model = params.model;

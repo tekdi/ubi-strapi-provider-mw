@@ -1,6 +1,10 @@
 import * as crypto from 'crypto';
 
-const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY!, 'base64'); // 32 bytes for AES-256
+const keyBase64 = process.env.ENCRYPTION_KEY;
+if (!keyBase64) {
+  throw new Error('ENCRYPTION_KEY environment variable is not set');
+}
+const ENCRYPTION_KEY = Buffer.from(keyBase64, 'base64'); // 32 bytes for AES-256
 if (ENCRYPTION_KEY.length !== 32) {
   throw new Error('ENCRYPTION_KEY must be a base64-encoded 32-byte string');
 }
