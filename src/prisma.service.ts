@@ -64,13 +64,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         if (model !== undefined) {
           fields = encryptionMap[model];
         }
-        if (fields && params.args?.data) {
-          fields.forEach(field => {
-            if (params.args.data[field]) {
-              params.args.data[field] = encrypt(params.args.data[field]);
-            }
-          });
-        }
+       if (fields) {
+         // Handle different data structures for different operations
+         const dataObjects: any[] = [];
+         if (params.args?.data) dataObjects.push(params.args.data);
+         if (params.args?.create) dataObjects.push(params.args.create);
+         if (params.args?.update) dataObjects.push(params.args.update);
+
+         dataObjects.forEach((dataObj: any) => {
+           fields.forEach(field => {
+             if (dataObj[field]) {
+               dataObj[field] = encrypt(dataObj[field]);
+             }
+           });
+         });
+       }
       }
 
       const result = await next(params);
