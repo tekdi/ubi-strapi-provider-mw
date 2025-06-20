@@ -42,7 +42,7 @@ export function decrypt(encryptedValue: string): any {
     if (OLD_ENCRYPTION_KEY) {
       return decryptWithKey(encryptedValue, OLD_ENCRYPTION_KEY);
     }
-    console.warn('Decryption failed for value:', encryptedValue, error);
+    console.warn('Decryption failed for value:', error);
     return null;
   }
 }
