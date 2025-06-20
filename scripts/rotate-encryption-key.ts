@@ -77,7 +77,7 @@ async function rotateModel(modelName: string, fields: string[]) {
     await prisma.$transaction(async tx => {
       for (const { id, updateData } of updates) {
         if (Object.keys(updateData).length) {
-          await (tx as any)[modelName.charAt(0).toLowerCase() + modelName.slice(1)].update({
+          await tx[modelName.charAt(0).toLowerCase() + modelName.slice(1)].update({
             where: { id },
             data: updateData,
           });
