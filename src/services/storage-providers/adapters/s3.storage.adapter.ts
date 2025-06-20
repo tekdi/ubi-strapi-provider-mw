@@ -21,8 +21,15 @@ export class S3StorageAdapter implements IFileStorageService {
   private readonly logger = new Logger(S3StorageAdapter.name);
 
   constructor() {
+    // Validate required environment variables
+    const requiredEnvVars = ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET_NAME'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+    if (missingVars.length > 0) {
+      throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    }
     const client = new S3Client({
-      region: process.env.AWS_REGION,
+      region: process.env.AWS_REGION!,
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -121,10 +128,11 @@ export class S3StorageAdapter implements IFileStorageService {
     }
   }
 
-  async generateTemporaryUrl(key: string): Promise<string | null> {
+  async generateTemporaryUrl(key: string, expiresAt?: Date): Promise<string | null> {
     try {
-    const expiresAt = Date.now() + 20 * 60 * 1000; // 20 minutes in milliseconds
-    const options = { expiresAt };
+      // Use provided expiry or default to 20 minutes
+      const defaultExpiry = new Date(Date.now() + 20 * 60 * 1000);
+      const options = { expiresAt: (expiresAt || defaultExpiry).getTime() };
       return await this.storage.temporaryUrl(key, options);
     } catch (err) {
       if (err instanceof UnableToGetTemporaryUrl) {

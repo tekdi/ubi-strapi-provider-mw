@@ -5,5 +5,5 @@ export interface IFileStorageService {
   deleteFile?(key: string): Promise<boolean>;
   moveFile?(fromKey: string, toKey: string, isPublic?: boolean): Promise<boolean>;
   copyFile?(fromKey: string, toKey: string, isPublic?: boolean): Promise<boolean>;
-  generateTemporaryUrl?(key: string, expiresAt: Date): Promise<string | null>;
+  generateTemporaryUrl?(key: string, expiresAt?: Date): Promise<string | null>;
 }

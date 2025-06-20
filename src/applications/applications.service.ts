@@ -54,7 +54,7 @@ export class ApplicationsService {
 		}
 	}
 
-	// Helper to build file path with env and timestamp
+	// Helper to build file path with prefix and timestamp
 	private buildFilePath(applicationId: string, certificateType: string): string {
 		// fallback to 'local' if not set
 		const filePrefix = process.env.FILE_PREFIX_ENV ?? 'local';
@@ -109,8 +109,8 @@ export class ApplicationsService {
       // A.3 - URL-decode to get the original content
       const decodedContent = decodeURIComponent(urlEncoded);
 
-      // Use simplified buildFilePathWithEnvAndTimestamp
-      const filePathWithEnv = this.buildFilePath(
+      // Use simplified buildfilePathWithPrefixAndTimestamp
+      const filePathWithPrefix = this.buildFilePath(
         String(applicationId),
         key
       );
@@ -119,9 +119,10 @@ export class ApplicationsService {
       let storageKey: string | null;
       try {
         const contentBuffer = Buffer.from(decodedContent, 'utf-8');
-        console.log(`Uploading file to filePathWithEnv:`, filePathWithEnv);
-        storageKey = await this.fileStorageService.uploadFile(filePathWithEnv, contentBuffer);
-        console.log(`File uploaded to cloud: ${storageKey}`);
+        storageKey = await this.fileStorageService.uploadFile(filePathWithPrefix, contentBuffer);
+		if (!storageKey) {
+			throw new Error('Storage service returned null key');
+		}
       } catch (err) {
         console.error('Error uploading file to cloud:', err.message);
         throw new BadRequestException('Failed to upload file. Please try again later.');
