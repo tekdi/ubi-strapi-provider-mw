@@ -23,9 +23,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       for (const field of encryptionMap[model]) {
         if (obj[field]) {
           try {
-            obj[field] = decrypt(obj[field]);
+            const decrypted = decrypt(obj[field]);
+            if (decrypted !== null) {
+              obj[field] = decrypted;
+            } else {
+              // Optionally, you can delete the field or set to null
+              obj[field] = null;
+            }
           } catch (e) {
             console.error(`Failed to decrypt field '${field}' in model '${model}':`, e);
+            obj[field] = null;
           }
         }
       }
