@@ -4,6 +4,7 @@ import {
 	NotFoundException,
 	forwardRef,
 	BadRequestException,
+	UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
@@ -16,6 +17,7 @@ import { BenefitsService } from 'src/benefits/benefits.service';
 import reportsConfig from '../common/reportsConfig.json';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { AclService } from '../common/service/acl';
 import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 import { Buffer } from 'buffer';
 
@@ -36,6 +38,7 @@ export class ApplicationsService {
 		private readonly benefitsService: BenefitsService,
 		private readonly httpService: HttpService,
 		private readonly configService: ConfigService,
+		private readonly aclService: AclService,
 		@Inject('FileStorageService')
     	private readonly fileStorageService: IFileStorageService,
 	) {
@@ -152,6 +155,16 @@ export class ApplicationsService {
 	// Get all applications with benefit details
 	async findAll(listDto: ListApplicationsDto, req: Request) {
 		const authToken = getAuthToken(req);
+
+		// Get user from request middleware
+		const userId = (req as any).mw_userid;
+
+		// Check if user can access this application
+		const canAccess = await this.aclService.canAccessBenefit(listDto.benefitId, authToken, userId);
+		if (!canAccess) {
+			throw new UnauthorizedException('You do not have permission to view this application');
+		}
+
 		const applications = await this.prisma.applications.findMany({
 			where: {
 				benefitId: listDto.benefitId
@@ -177,6 +190,16 @@ export class ApplicationsService {
 	// Get a single application by ID
 	async findOne(id: number, req: Request) {
 		const authToken = getAuthToken(req);
+		
+		// Get user from request middleware
+		const userId = (req as any).mw_userid;
+
+		// // Check if user can access this application
+		const canAccess = await this.aclService.canAccessApplication(authToken, id, userId);
+		if (!canAccess) {
+			throw new UnauthorizedException('You do not have permission to view this application');
+		}
+
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
@@ -752,6 +775,7 @@ export class ApplicationsService {
 	}
 
 	async exportEligibilityDetailsCsv(
+		benefitId: string,
 		reportType: string,
 	): Promise<string> {
 		const reportConfig = reportsConfig[reportType];
@@ -768,7 +792,7 @@ export class ApplicationsService {
 			eligibilityDetailsFields = [],
 		} = reportConfig;
 
-		const applications = await this.fetchApplicationsEligibilityResults();
+		const applications = await this.fetchApplicationsEligibilityResults(benefitId);
 
 		const finalAppDataFields = this.resolveDynamicFields(
 			applications,
@@ -809,10 +833,11 @@ export class ApplicationsService {
 		return csvRows.join('\n');
 	}
 
-	async fetchApplicationsEligibilityResults(){
+	async fetchApplicationsEligibilityResults(benefitId){
 		try {
 			return await this.prisma.applications.findMany({
 				where: {
+					benefitId: benefitId,
 					eligibilityStatus: {
 						in: ['eligible', 'ineligible']
 					}
