@@ -1,15 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { VerifyApplicationVcsResponseDto } from './dtos';
 import { PrismaService } from '../prisma.service';
-import { promises as fs } from 'fs';
+import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 
 @Injectable()
 export class VerificationService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly httpService: HttpService
+    private readonly httpService: HttpService,
+    @Inject('FileStorageService')
+    private readonly fileStorageService: IFileStorageService,
   ) { }
 
   async verifyApplicationVcs(payload: { applicationId: string, applicationFileIds?: string[] }): Promise<{
@@ -28,7 +30,7 @@ export class VerificationService {
       // Validate that all IDs are valid numbers
       const invalidIds = applicationFileIds.filter(id => isNaN(Number(id)));
       if (invalidIds.length > 0) {
-          return this.buildResponse(false, 400, `Invalid file IDs provided: ${invalidIds.join(', ')}`, applicationId, [], 'unverified');
+        return this.buildResponse(false, 400, `Invalid file IDs provided: ${invalidIds.join(', ')}`, applicationId, [], 'unverified');
       }
       // Fetch only the specified application files
       applicationFiles = await this.getApplicationFilesByIds(applicationFileIds.map(id => Number(id)), Number(applicationId));
@@ -54,123 +56,132 @@ export class VerificationService {
     }[] = [];
 
     for (const file of applicationFiles) {
-      if (file.storage === 'local') {
-        if (!file.filePath) {
-          verificationResults.push({
-            id: file.id,
-            filePath: null,
-            isValid: false,
-            message: 'File path is missing for this application file.',
-          });
+      if (!file.filePath) {
+        verificationResults.push({
+          id: file.id,
+          filePath: null,
+          isValid: false,
+          message: 'File path is missing for this application file.',
+        });
 
-          await this.prisma.applicationFiles.update({
-            where: { id: file.id },
-            data: {
-              verificationStatus: {
-                status: 'Unverified',
-                verificationErrors: ['File path is missing.'],
-              },
+        await this.prisma.applicationFiles.update({
+          where: { id: file.id },
+          data: {
+            verificationStatus: {
+              status: 'Unverified',
+              verificationErrors: ['File path is missing.'],
             },
-          });
-          continue;
+          },
+        });
+        continue;
+      }
+
+      try {
+        // Use fileStorageService for all storage types
+        const fileContent = await this.fileStorageService.getFile(file.filePath);
+        console.log(`Verifying file: ${file.filePath}`);
+
+        if (!fileContent) {
+          throw new Error('Failed to read file content from storage.');
         }
 
-        try {
-          const fileContent = await fs.readFile(file.filePath, 'utf-8');
+        // Convert Buffer to string first
+        const fileContentString = fileContent.toString();
+        console.log('fileContentString:',fileContentString);
 
-          // Try to detect if the content is URL-encoded
-          let content = fileContent;
-          if (fileContent.trim().startsWith('%')) {
-            try {
-              content = decodeURIComponent(fileContent);
-            } catch (decodeError) {
-              console.error('Failed to decode URI component:', decodeError);
-              throw decodeError;
-            }
-          }
-
-          let parsedData;
+        // Try to detect if the content is URL-encoded
+        let content = fileContentString;
+        if (fileContentString.trim().startsWith('%')) {
           try {
-            parsedData = JSON.parse(content);
-          } catch (parseError) {
-            console.error('Failed to parse JSON file:', parseError);
-            throw parseError;
+            content = decodeURIComponent(fileContentString);
+            console.log('content:',fileContentString);
+          } catch (decodeError) {
+            console.error('Failed to decode URI component:', decodeError);
+            throw decodeError;
           }
-
-          const DEFAULT_ISSUER_NAME = process.env.DEFAULT_ISSUER_NAME?.trim() ?? 'dhiway';
-          let issuerName = file.issuerName;
-          if (!issuerName || typeof issuerName !== 'string' || issuerName.trim() === '') {
-            issuerName = DEFAULT_ISSUER_NAME;
-          }
-
-          const response = await lastValueFrom(
-            this.httpService.post(apiUrl, {
-              credential: parsedData,
-              config: {
-                method: "online",
-                issuerName: issuerName,
-              }
-            })
-          );
-
-          const isValid = response?.data?.success ?? false;
-          const message = isValid
-            ? response.data.message ?? 'Credential verified successfully.'
-            : `${response.data.message ?? 'Verification failed.'} Errors: ${(response.data.errors?.map((err: any) => err.error) ?? ['Unknown error']).join(', ')
-            }`;
-
-          verificationResults.push({
-            id: file.id,
-            filePath: file.filePath,
-            isValid,
-            message,
-          });
-
-          await this.prisma.applicationFiles.update({
-            where: { id: file.id },
-            data: {
-              verificationStatus: {
-                status: isValid ? 'Verified' : 'Unverified',
-                ...(isValid ? {} : {
-                  verificationErrors: response.data.errors
-                    ? response.data.errors.map((err: any) => ({
-                        error: err.error,
-                        raw: err.raw,
-                      }))
-                    : [{ error: 'Unknown error', raw: null }],
-                }),
-              },
-            },
-          });
-        } catch (error: any) {
-          verificationResults.push({
-            id: file.id,
-            filePath: file.filePath,
-            isValid: false,
-            message: `Error: ${error.message}`,
-          });
-
-          // Try to extract error response from API if available
-          let verificationErrors;
-          if (error?.response?.data?.errors) {
-            verificationErrors = error.response.data.errors.map((err: any) => ({
-              error: err.error,
-              raw: err.raw,
-            }));
-          } else {
-            verificationErrors = [{ error: error.message, raw: error?.response?.data ?? null }];
-          }
-
-          await this.prisma.applicationFiles.update({
-            where: { id: file.id },
-            data: {
-              verificationStatus: {
-                status: 'Unverified',
-                verificationErrors,
-              },
-            },
-          });
         }
+
+        let parsedData;
+        try {
+          parsedData = JSON.parse(content);
+        } catch (parseError) {
+          console.error('Failed to parse JSON file:', parseError);
+          throw parseError;
+        }
+
+        const DEFAULT_ISSUER_NAME = process.env.DEFAULT_ISSUER_NAME?.trim() ?? 'dhiway';
+        let issuerName = file.issuerName;
+        if (!issuerName || typeof issuerName !== 'string' || issuerName.trim() === '') {
+          issuerName = DEFAULT_ISSUER_NAME;
+        }
+
+        const response = await lastValueFrom(
+          this.httpService.post(apiUrl, {
+            credential: parsedData,
+            config: {
+              method: "online",
+              issuerName: issuerName,
+            }
+          })
+        );
+
+        const isValid = response?.data?.success ?? false;
+        const message = isValid
+          ? response.data.message ?? 'Credential verified successfully.'
+          : `${response.data.message ?? 'Verification failed.'} Errors: ${(response.data.errors?.map((err: any) => err.error) ?? ['Unknown error']).join(', ')
+          }`;
+
+        verificationResults.push({
+          id: file.id,
+          filePath: file.filePath,
+          isValid,
+          message,
+        });
+
+        await this.prisma.applicationFiles.update({
+          where: { id: file.id },
+          data: {
+            verificationStatus: {
+              status: isValid ? 'Verified' : 'Unverified',
+              ...(isValid ? {} : {
+                verificationErrors: response.data.errors
+                  ? response.data.errors.map((err: any) => ({
+                    error: err.error,
+                    raw: err.raw,
+                  }))
+                  : [{ error: 'Unknown error', raw: null }],
+              }),
+            },
+          },
+        });
+      } catch (error: any) {
+        verificationResults.push({
+          id: file.id,
+          filePath: file.filePath,
+          isValid: false,
+          message: `Error: ${error.message}`,
+        });
+
+        // Try to extract error response from API if available
+        let verificationErrors;
+        if (error?.response?.data?.errors) {
+          verificationErrors = error.response.data.errors.map((err: any) => ({
+            error: err.error,
+            raw: err.raw,
+          }));
+        } else {
+          verificationErrors = [{ error: error.message, raw: error?.response?.data ?? null }];
+        }
+
+        await this.prisma.applicationFiles.update({
+          where: { id: file.id },
+          data: {
+            verificationStatus: {
+              status: 'Unverified',
+              verificationErrors,
+            },
+          },
+        });
       }
     }
 
