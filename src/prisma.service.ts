@@ -12,12 +12,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
     super();
 
-    // Validate encryption key is available
+    // Validate encryption key is available at startup
     if (!process.env.ENCRYPTION_KEY) {
       throw new Error('ENCRYPTION_KEY environment variable is required for field encryption');
     }
 
-    // Helper to decrypt fields for a given model
+    // Helper to decrypt fields for a given model using the encryption map
     function decryptModelFields(obj: any, model?: string) {
       if (!model || !encryptionMap[model]) return;
       for (const field of encryptionMap[model]) {
@@ -27,10 +27,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             if (decrypted !== null) {
               obj[field] = decrypted;
             } else {
-              // Optionally, you can delete the field or set to null
+              // If decryption fails, set field to null
               obj[field] = null;
             }
           } catch (e) {
+            // Log decryption errors for debugging
             console.error(`Failed to decrypt field '${field}' in model '${model}':`, e);
             obj[field] = null;
           }
@@ -38,14 +39,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       }
     }
 
-    // Helper to find related model name from key
+    // Helper to find related model name from key (case-insensitive)
     function getRelatedModel(key: string): string | undefined {
       return Object.keys(encryptionMap).find(
         m => m.toLowerCase() === key.toLowerCase()
       );
     }
 
-    // Refactored recursiveDecrypt function
+    // Recursively decrypts nested objects/arrays based on model
     function recursiveDecrypt(obj: any, model?: string) {
       if (Array.isArray(obj)) {
         return obj.map(item => recursiveDecrypt(item, model));
@@ -62,35 +63,37 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       return obj;
     }
 
-    // Use Prisma middleware for encryption/decryption
+    // Prisma middleware for transparent encryption/decryption
     this.$use(async (params, next) => {
-      // Encrypt before create/update
+      // Encrypt fields before create/update/upsert
       if (['create', 'update', 'upsert'].includes(params.action)) {
         const model = params.model;
         let fields: string[] | undefined = undefined;
         if (model !== undefined) {
           fields = encryptionMap[model];
         }
-       if (fields) {
-         // Handle different data structures for different operations
-         const dataObjects: any[] = [];
-         if (params.args?.data) dataObjects.push(params.args.data);
-         if (params.args?.create) dataObjects.push(params.args.create);
-         if (params.args?.update) dataObjects.push(params.args.update);
+        if (fields) {
+          // Handle different data structures for different operations
+          const dataObjects: any[] = [];
+          if (params.args?.data) dataObjects.push(params.args.data);
+          if (params.args?.create) dataObjects.push(params.args.create);
+          if (params.args?.update) dataObjects.push(params.args.update);
 
-         dataObjects.forEach((dataObj: any) => {
-           fields.forEach(field => {
-             if (dataObj[field]) {
-               dataObj[field] = encrypt(dataObj[field]);
-             }
-           });
-         });
-       }
+          dataObjects.forEach((dataObj: any) => {
+            fields.forEach(field => {
+              // Encrypt only if field is present
+              if (dataObj[field]) {
+                dataObj[field] = encrypt(dataObj[field]);
+              }
+            });
+          });
+        }
       }
 
+      // Call the next middleware or Prisma action
       const result = await next(params);
 
-      // Decrypt after find (recursively)
+      // Decrypt fields after find/create/update/upsert (recursively)
       if (
         ['findUnique', 'findFirst', 'findMany', 'create', 'update', 'upsert'].includes(params.action)
       ) {
