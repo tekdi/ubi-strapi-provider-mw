@@ -12,9 +12,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
     super();
 
-    // Validate encryption key is available at startup
+    // Validate encryption key is available and properly formatted at startup
     if (!process.env.ENCRYPTION_KEY) {
-      throw new Error('ENCRYPTION_KEY environment variable is required for field encryption');
+        throw new Error('ENCRYPTION_KEY environment variable is required for field encryption');
+    }
+    if (process.env.ENCRYPTION_KEY.length < 32) {
+        throw new Error('ENCRYPTION_KEY must be at least 32 characters long for AES-256');
     }
 
     // Helper to decrypt fields for a given model using the encryption map
@@ -82,8 +85,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           dataObjects.forEach((dataObj: any) => {
             fields.forEach(field => {
               // Encrypt only if field is present
-              if (dataObj[field]) {
-                dataObj[field] = encrypt(dataObj[field]);
+              if (dataObj[field] !== undefined && dataObj[field] !== null) {
+                try {
+                  dataObj[field] = encrypt(dataObj[field]);
+                } catch (e) {
+                  console.error(`Failed to encrypt field '${field}' in model '${model}':`, e);
+                  throw new Error(`Encryption failed for field '${field}': ${e.message}`);
+                }
               }
             });
           });
