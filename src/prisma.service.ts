@@ -66,54 +66,53 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       return obj;
     }
 
+    // Helper to extract data objects from params for encryption
+    const extractDataObjects = (args: any): any[] => {
+      const dataObjects: any[] = [];
+      if (args?.data) {
+        Array.isArray(args.data) ? dataObjects.push(...args.data) : dataObjects.push(args.data);
+      }
+      if (args?.create) dataObjects.push(args.create);
+      if (args?.update) dataObjects.push(args.update);
+      return dataObjects;
+    };
+
+    // Helper to encrypt fields in data objects
+    const encryptFields = (dataObjects: any[], fields: string[], model: string) => {
+      dataObjects.forEach(dataObj => {
+        fields.forEach(field => {
+          if (dataObj[field] !== undefined && dataObj[field] !== null) {
+            try {
+              dataObj[field] = encrypt(dataObj[field]);
+            } catch (e) {
+              console.error(`Failed to encrypt field '${field}' in model '${model}':`, e);
+              throw new Error(`Encryption failed for field '${field}': ${e.message}`);
+            }
+          }
+        });
+      });
+    };
+
+    // Constants for actions
+    const ENCRYPT_ACTIONS = ['create', 'update', 'upsert', 'createMany', 'updateMany'];
+    const DECRYPT_ACTIONS = ['findUnique', 'findFirst', 'findMany', 'create', 'update', 'upsert'];
+
     // Prisma middleware for transparent encryption/decryption
     this.$use(async (params, next) => {
-      // Encrypt fields before create/update/upsert
-      if (['create', 'update', 'upsert', 'createMany', 'updateMany'].includes(params.action)) {
-        const model = params.model;
-        let fields: string[] | undefined = undefined;
-        if (model !== undefined) {
-          fields = encryptionMap[model];
-        }
-        if (fields) {
-          // Handle different data structures for different operations
-          const dataObjects: any[] = [];
-          if (params.args?.data) dataObjects.push(params.args.data);
-          if (params.args?.create) dataObjects.push(params.args.create);
-          if (params.args?.update) dataObjects.push(params.args.update);
+      const { model, action, args } = params;
+      const fields = model ? encryptionMap[model] : undefined;
 
-          // Handle batch operations
-          if (params.args?.data && Array.isArray(params.args.data)) {
-            dataObjects.push(...params.args.data);
-          }
-
-          dataObjects.forEach((dataObj: any) => {
-            fields.forEach(field => {
-              // Encrypt only if field is present
-              if (dataObj[field] !== undefined && dataObj[field] !== null) {
-                try {
-                  dataObj[field] = encrypt(dataObj[field]);
-                } catch (e) {
-                  console.error(`Failed to encrypt field '${field}' in model '${model}':`, e);
-                  throw new Error(`Encryption failed for field '${field}': ${e.message}`);
-                }
-              }
-            });
-          });
-        }
+      // Encrypt fields before operations
+      if (ENCRYPT_ACTIONS.includes(action) && fields && model) {
+        const dataObjects = extractDataObjects(args);
+        encryptFields(dataObjects, fields, model);
       }
 
-      // Call the next middleware or Prisma action
+      // Execute the operation
       const result = await next(params);
 
-      // Decrypt fields after find/create/update/upsert (recursively)
-      if (
-        ['findUnique', 'findFirst', 'findMany', 'create', 'update', 'upsert'].includes(params.action)
-      ) {
-        const model = params.model;
-        return recursiveDecrypt(result, model);
-      }
-      return result;
+      // Decrypt fields after operations
+      return DECRYPT_ACTIONS.includes(action) ? recursiveDecrypt(result, model) : result;
     });
   }
 }
