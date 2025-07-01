@@ -24,7 +24,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     function decryptModelFields(obj: any, model?: string) {
       if (!model || !encryptionMap[model]) return;
       for (const field of encryptionMap[model]) {
-        if (obj[field]) {
+        if (obj[field] !== undefined && obj[field] !== null) {
           try {
             const decrypted = decrypt(obj[field]);
             if (decrypted !== null) {
@@ -69,7 +69,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // Prisma middleware for transparent encryption/decryption
     this.$use(async (params, next) => {
       // Encrypt fields before create/update/upsert
-      if (['create', 'update', 'upsert'].includes(params.action)) {
+      if (['create', 'update', 'upsert', 'createMany', 'updateMany'].includes(params.action)) {
         const model = params.model;
         let fields: string[] | undefined = undefined;
         if (model !== undefined) {
@@ -81,6 +81,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           if (params.args?.data) dataObjects.push(params.args.data);
           if (params.args?.create) dataObjects.push(params.args.create);
           if (params.args?.update) dataObjects.push(params.args.update);
+
+          // Handle batch operations
+          if (params.args?.data && Array.isArray(params.args.data)) {
+            dataObjects.push(...params.args.data);
+          }
 
           dataObjects.forEach((dataObj: any) => {
             fields.forEach(field => {
