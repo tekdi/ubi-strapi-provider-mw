@@ -5,7 +5,8 @@ export enum ApplicationStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
-  IN_PROGRESS = 'in_progress'
+  IN_PROGRESS = 'in_progress',
+  RESUBMIT = 'resubmit'
 }
 
 export class UpdateApplicationStatusDto {
