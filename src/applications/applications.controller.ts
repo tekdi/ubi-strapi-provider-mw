@@ -50,9 +50,7 @@ export class ApplicationsController {
 	@ApiResponse(ApplicationsApiDocs.create.responses.success)
 	@ApiResponse(ApplicationsApiDocs.create.responses.badRequest)
 	async create(@Body() data: CreateApplicationsDto) {
-		return this.applicationsService.create(
-			data as Prisma.ApplicationsCreateInput,
-		);
+		return this.applicationsService.create(data);
 	}
 
   @Get()

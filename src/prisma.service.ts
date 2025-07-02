@@ -28,7 +28,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           try {
             const decrypted = decrypt(obj[field]);
             if (decrypted !== null) {
-              obj[field] = decrypted;
+              // Special handling for applicationData field - parse as JSON
+              if (model === 'Applications' && field === 'applicationData') {
+                try {
+                  obj[field] = JSON.parse(decrypted);
+                } catch (parseError) {
+                  console.error(`Failed to parse JSON for field '${field}' in model '${model}':`, parseError);
+                  obj[field] = {};
+                }
+              } else {
+                obj[field] = decrypted;
+              }
             } else {
               // If decryption fails, set field to null
               obj[field] = null;

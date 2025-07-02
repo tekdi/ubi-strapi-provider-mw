@@ -18,7 +18,7 @@ model Applications {
   id               Int                @id @default(autoincrement())
   benefitId        String
   status           String
-  applicationData  Json // form fields saved as they are dynamic
+  applicationData  String // form fields saved as encrypted text
   customerId       String?
   bapId            String?
   calculatedAmount Json?

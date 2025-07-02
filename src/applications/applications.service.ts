@@ -93,7 +93,7 @@ export class ApplicationsService {
         status,
         customerId,
         bapId,
-        applicationData: normalFields,
+        applicationData: JSON.stringify(normalFields),
       },
     });
     const applicationId = application.id;
