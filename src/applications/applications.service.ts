@@ -9,7 +9,10 @@ import {
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
 import { Request } from 'express';
-import { UpdateApplicationActionLogDto, UpdateApplicationStatusDto } from './dto/update-application-status.dto';
+import {
+	UpdateApplicationActionLogDto,
+	UpdateApplicationStatusDto,
+} from './dto/update-application-status.dto';
 import { ListApplicationsDto } from './dto/list-applications.dto';
 import { getAuthToken } from '../common/util';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { AclService } from '../common/service/acl';
 import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 import { Buffer } from 'buffer';
+import { log } from 'console';
 
 export interface BenefitDetail {
 	id: string;
@@ -40,7 +44,7 @@ export class ApplicationsService {
 		private readonly configService: ConfigService,
 		private readonly aclService: AclService,
 		@Inject('FileStorageService')
-    	private readonly fileStorageService: IFileStorageService,
+		private readonly fileStorageService: IFileStorageService,
 	) {
 		const url = this.configService.get('ELIGIBILITY_API_URL');
 		if (!url) {
@@ -55,7 +59,10 @@ export class ApplicationsService {
 	}
 
 	// Helper to build file path with prefix and timestamp
-	private buildFilePath(applicationId: string, certificateType: string): string {
+	private buildFilePath(
+		applicationId: string,
+		certificateType: string,
+	): string {
 		// fallback to 'local' if not set
 		const filePrefix = process.env.FILE_PREFIX_ENV ?? 'local';
 		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -66,9 +73,53 @@ export class ApplicationsService {
 
 	// Create a new application
 	async create(data: any) {
-		// Split fields into base64 and normal
+		// Step 1: Split fields into base64-encoded files and normal data
+		const { base64Fields, normalFields } = this.splitFields(data);
+
+		// Step 2: Extract required identifiers
+		const benefitId = data.benefitId;
+		if (!benefitId) throw new Error('benefitId is required');
+
+		const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
+		const orderId = data.orderId ?? null;
+
+		// Step 3: Either create a new application or update existing one if orderId is matched
+		const { application, isUpdate } = await this.findOrCreateApplication({
+			orderId,
+			benefitId,
+			bapId,
+			normalFields,
+		});
+
+		// Step 4: Determine whether it was an update or a new creation
+
+		const applicationId = application.id;
+
+		// Step 5: Handle file uploads
+		const applicationFiles = await this.processBase64Files(
+			applicationId,
+			base64Fields,
+		);
+
+		// Step 6: Return result
+		return {
+			application,
+			applicationFiles,
+			message: isUpdate
+				? 'Application updated with resubmitted data.'
+				: 'New application created.',
+		};
+	}
+
+	/**
+	 * Splits the incoming data into two parts:
+	 * - base64Fields: for documents that need to be uploaded
+	 * - normalFields: other application data
+	 */
+	private splitFields(data: any) {
 		const base64Fields: { key: string; value: string }[] = [];
 		const normalFields: Record<string, any> = {};
+
 		for (const [key, value] of Object.entries(data)) {
 			if (typeof value === 'string' && value.startsWith('base64,')) {
 				base64Fields.push({ key, value });
@@ -77,80 +128,128 @@ export class ApplicationsService {
 			}
 		}
 
-		// Prepare application record
-		if (!data.benefitId) {
-			throw new Error('benefitId is required');
+		return { base64Fields, normalFields };
+	}
+	/**
+	 * Checks if an application with the given orderId exists.
+	 * - If yes: updates the application and deletes old files
+	 * - If no: creates a new application
+	 */
+	private async findOrCreateApplication({
+		orderId,
+		benefitId,
+		bapId,
+		normalFields,
+	}: {
+		orderId: string | null;
+		benefitId: string;
+		bapId: string | null;
+		normalFields: Record<string, any>;
+	}) {
+		if (orderId) {
+			const existing = await this.prisma.applications.findFirst({
+				where: { orderId },
+			});
+
+			if (existing) {
+				// Delete old application files before updating
+				await this.prisma.applicationFiles.deleteMany({
+					where: { applicationId: existing.id },
+				});
+
+				const updated = await this.prisma.applications.update({
+					where: { id: existing.id },
+					data: {
+						benefitId,
+						bapId,
+						applicationData: JSON.stringify(normalFields),
+
+						updatedAt: new Date(),
+						status: 'pending',
+					},
+				});
+				return { application: updated, isUpdate: true };
+			}
 		}
-		const benefitId = data.benefitId;
+
+		// Create new application if no existing one found
 		const customerId = uuidv4();
-		const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
-		const status = 'pending';
+		const created = await this.prisma.applications.create({
+			data: {
+				benefitId,
+				status: 'pending',
+				customerId,
+				bapId,
+				applicationData: JSON.stringify(normalFields),
+				orderId,
+			},
+		});
+		return { application: created, isUpdate: false };
+	}
+	/**
+	 * Handles processing of base64 files:
+	 * - Decodes content
+	 * - Uploads to storage
+	 * - Saves record in database
+	 */
+	private async processBase64Files(
+		applicationId: number,
+		base64Fields: { key: string; value: string }[],
+	) {
+		const applicationFiles: ApplicationFiles[] = [];
 
-    // Save application (normal fields as applicationData)
-    const application = await this.prisma.applications.create({
-      data: {
-        benefitId,
-        status,
-        customerId,
-        bapId,
-        applicationData: JSON.stringify(normalFields),
-      },
-    });
-    const applicationId = application.id;
+		for (const { key, value } of base64Fields) {
+			const decodedContent = this.decodeBase64(value);
+			const filePathWithPrefix = this.buildFilePath(String(applicationId), key);
 
-    // Process base64 fields
-    const applicationFiles: ApplicationFiles[] = [];
-    for (const { key, value } of base64Fields) {
+			const contentBuffer = Buffer.from(decodedContent, 'utf-8');
 
-      // A.1 - Remove base64, from start of the content
-      const base64Content = value.replace(/^base64,/, '');
-      // A.2 - base64-decode to get the URL-encoded string (as we expect text (like JSON), save as string)
-      const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
-      // A.3 - URL-decode to get the original content
-      const decodedContent = decodeURIComponent(urlEncoded);
+			let storageKey: string | null;
 
-      // Use simplified buildfilePathWithPrefixAndTimestamp
-      const filePathWithPrefix = this.buildFilePath(
-        String(applicationId),
-        key
-      );
+			try {
+				// Upload decoded file to file storage (e.g., cloud/local)
+				storageKey = await this.fileStorageService.uploadFile(
+					filePathWithPrefix,
+					contentBuffer,
+				);
 
-      // A.4 - Use CloudService for upload
-      let storageKey: string | null;
-      try {
-        const contentBuffer = Buffer.from(decodedContent, 'utf-8');
-        storageKey = await this.fileStorageService.uploadFile(filePathWithPrefix, contentBuffer);
-		if (!storageKey) {
-			throw new Error('Storage service returned null key');
+				if (!storageKey) throw new Error('Storage service returned null key');
+			} catch (err) {
+				console.error('Error uploading file to cloud:', err.message);
+				throw new BadRequestException(
+					'Failed to upload file. Please try again later.',
+				);
+			}
+
+			try {
+				// Save uploaded file info in applicationFiles table
+				const appFile = await this.prisma.applicationFiles.create({
+					data: {
+						storage: process.env.FILE_STORAGE_PROVIDER ?? 'local',
+						filePath: storageKey,
+						applicationId,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					},
+				});
+				applicationFiles.push(appFile);
+			} catch (err) {
+				console.error('Error saving ApplicationFiles record:', err.message);
+				throw new BadRequestException(
+					'Failed to save file record. Please try again later.',
+				);
+			}
 		}
-      } catch (err) {
-        console.error('Error uploading file to cloud:', err.message);
-        throw new BadRequestException('Failed to upload file. Please try again later.');
-      }
 
-      // B - Save ApplicationFiles record
-      try {
-        const appFile = await this.prisma.applicationFiles.create({
-          data: {
-            storage: process.env.FILE_STORAGE_PROVIDER ?? 'local',
-            filePath: storageKey,
-            applicationId: applicationId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-        applicationFiles.push(appFile);
-      } catch (err) {
-        console.error('Error saving ApplicationFiles record:', err.message);
-        throw new BadRequestException('Failed to save file record. Please try again later.');
-      }
-    }
-
-
-		return {
-			application,
-			applicationFiles,
-		};
+		return applicationFiles;
+	}
+	/**
+	 * Decodes a base64-encoded string back into UTF-8 content
+	 */
+	private decodeBase64(base64String: string): string {
+		const base64Content = base64String.replace(/^base64,/, '');
+		const urlEncoded = Buffer.from(base64Content, 'base64').toString('utf-8');
+		return decodeURIComponent(urlEncoded);
 	}
 
 	// Get all applications with benefit details
@@ -161,28 +260,40 @@ export class ApplicationsService {
 		const userId = (req as any).mw_userid;
 
 		// Check if user can access this application
-		const canAccess = await this.aclService.canAccessBenefit(listDto.benefitId, authToken, userId);
+		const canAccess = await this.aclService.canAccessBenefit(
+			listDto.benefitId,
+			authToken,
+			userId,
+		);
 		if (!canAccess) {
-			throw new UnauthorizedException('You do not have permission to view this application');
+			throw new UnauthorizedException(
+				'You do not have permission to view this application',
+			);
 		}
 
 		const applications = await this.prisma.applications.findMany({
 			where: {
-				benefitId: listDto.benefitId
+				benefitId: listDto.benefitId,
 			},
 		});
 
 		// Enrich applications with benefit details
 		let benefit: BenefitDetail | null = null;
 		try {
-			const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(`${listDto.benefitId}`, authToken);
+			const benefitDetail = await this.benefitsService.getBenefitsByIdStrapi(
+				`${listDto.benefitId}`,
+				authToken,
+			);
 			benefit = {
 				id: benefitDetail?.data?.data?.id,
 				documentId: benefitDetail?.data?.data?.documentId,
 				title: benefitDetail?.data?.data?.title,
-			}
+			};
 		} catch (error) {
-			console.error(`Error fetching benefit details for application:`, error.message);
+			console.error(
+				`Error fetching benefit details for application:`,
+				error.message,
+			);
 		}
 
 		return { applications, benefit };
@@ -191,14 +302,20 @@ export class ApplicationsService {
 	// Get a single application by ID
 	async findOne(id: number, req: Request) {
 		const authToken = getAuthToken(req);
-		
+
 		// Get user from request middleware
 		const userId = (req as any).mw_userid;
 
 		// // Check if user can access this application
-		const canAccess = await this.aclService.canAccessApplication(authToken, id, userId);
+		const canAccess = await this.aclService.canAccessApplication(
+			authToken,
+			id,
+			userId,
+		);
 		if (!canAccess) {
-			throw new UnauthorizedException('You do not have permission to view this application');
+			throw new UnauthorizedException(
+				'You do not have permission to view this application',
+			);
 		}
 
 		const application = await this.prisma.applications.findUnique({
@@ -211,25 +328,37 @@ export class ApplicationsService {
 			throw new NotFoundException('Applications not found');
 		}
 
-    // Add base64 file content to each applicationFile
-    if (application.applicationFiles && Array.isArray(application.applicationFiles)) {
-      application.applicationFiles = await Promise.all(application.applicationFiles.map(async file => {
-        if (file.filePath) {
-          let decodedContent: any;
-          try {
-            decodedContent = await this.fileStorageService.getFile(file.filePath);
-          } catch (error) {
-            console.error(`Error fetching file content for application file ${file.id}:`, error.message);
-            decodedContent = '';
-          }
-          if (decodedContent) {
-          const base64Content = decodedContent ? Buffer.from(decodedContent).toString('base64') : null;
-            return { ...file, fileContent: base64Content };
-          }
-        }
-        return { ...file, fileContent: null };
-      }));
-    }
+		// Add base64 file content to each applicationFile
+		if (
+			application.applicationFiles &&
+			Array.isArray(application.applicationFiles)
+		) {
+			application.applicationFiles = await Promise.all(
+				application.applicationFiles.map(async (file) => {
+					if (file.filePath) {
+						let decodedContent: any;
+						try {
+							decodedContent = await this.fileStorageService.getFile(
+								file.filePath,
+							);
+						} catch (error) {
+							console.error(
+								`Error fetching file content for application file ${file.id}:`,
+								error.message,
+							);
+							decodedContent = '';
+						}
+						if (decodedContent) {
+							const base64Content = decodedContent
+								? Buffer.from(decodedContent).toString('base64')
+								: null;
+							return { ...file, fileContent: base64Content };
+						}
+					}
+					return { ...file, fileContent: null };
+				}),
+			);
+		}
 
 		let benefitDetails;
 		try {
@@ -259,8 +388,8 @@ export class ApplicationsService {
 		return await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
-				applicationFiles: true
-			}
+				applicationFiles: true,
+			},
 		});
 	}
 
@@ -346,7 +475,6 @@ export class ApplicationsService {
 		});
 	}
 
-
 	async exportApplicationsCsv(
 		benefitId: string,
 		reportType: string,
@@ -410,7 +538,9 @@ export class ApplicationsService {
 				},
 			});
 		} catch (error) {
-			throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
+			throw new BadRequestException(
+				`Failed to fetch applications: ${error.message}`,
+			);
 		}
 	}
 
@@ -418,7 +548,7 @@ export class ApplicationsService {
 		apps: any[],
 		fields: string[],
 		source: 'applicationData' | 'calculatedAmount',
-		excludeFields: string[] = []
+		excludeFields: string[] = [],
 	): string[] {
 		if (!Array.isArray(fields)) return [];
 
@@ -428,7 +558,7 @@ export class ApplicationsService {
 		for (const app of apps) {
 			const sourceData = app[source];
 			if (sourceData && typeof sourceData === 'object') {
-				Object.keys(sourceData).forEach(key => {
+				Object.keys(sourceData).forEach((key) => {
 					if (!excludeFields.includes(key)) {
 						keySet.add(key);
 					}
@@ -440,31 +570,38 @@ export class ApplicationsService {
 			return Array.from(keySet).sort((a, b) => a.localeCompare(b));
 		}
 
-		return fields.filter(field => !excludeFields.includes(field));
+		return fields.filter((field) => !excludeFields.includes(field));
 	}
 
-	private generateAutoFields(fields: string[], index: number): (string | number)[] {
-		return fields.map(field => field === 'serialNumber' ? index + 1 : '');
+	private generateAutoFields(
+		fields: string[],
+		index: number,
+	): (string | number)[] {
+		return fields.map((field) => (field === 'serialNumber' ? index + 1 : ''));
 	}
 
 	private generateAppDataFields(app: any, fields: string[]): string[] {
-		return fields.map(field => {
+		return fields.map((field) => {
 			if (field === 'otr') return app.applicationData?.nspOtr ?? '';
-			if (field === 'aadhaar') return app.applicationData?.aadhaar?.slice(-4) ?? '';
+			if (field === 'aadhaar')
+				return app.applicationData?.aadhaar?.slice(-4) ?? '';
 			return app.applicationData?.[field] ?? '';
 		});
 	}
 
 	private generateCalcAmountFields(app: any, fields: string[]): any[] {
 		const calcAmountData = app.calculatedAmount ?? {};
-		return fields.map(field => {
+		return fields.map((field) => {
 			const value = calcAmountData[field];
 			return value ?? '';
 		});
 	}
 
-	private generateAppTableFields(app: any, fields: string[]): (string | number)[] {
-		return fields.map(field => {
+	private generateAppTableFields(
+		app: any,
+		fields: string[],
+	): (string | number)[] {
+		return fields.map((field) => {
 			if (field === 'amount') return app.finalAmount ?? '';
 			if (field === 'applicationId') return app.id ?? '';
 			return app[field] ?? '';
@@ -472,36 +609,47 @@ export class ApplicationsService {
 	}
 
 	private escapeCsvRow(row: (string | number)[]): string {
-		return row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+		return row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(',');
 	}
 
 	// Get a single application by ID
 	async calculateBenefit(id: number, authToken: string) {
 		const application = await this.prisma.applications.findUnique({
-			where: { id }
+			where: { id },
 		});
 
 		if (!application) {
 			throw new NotFoundException('Applications not found');
 		}
 
-		const benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(`${application.benefitId}`, authToken);
+		const benefitDetails = await this.benefitsService.getBenefitsByIdStrapi(
+			`${application.benefitId}`,
+			authToken,
+		);
 
 		if (!benefitDetails?.data?.data) {
 			throw new NotFoundException('Benefit details not found');
 		}
 
 		let amounts;
-		amounts = await this.doBenefitCalculations(application.applicationData, benefitDetails?.data?.data);
+		amounts = await this.doBenefitCalculations(
+			application.applicationData,
+			benefitDetails?.data?.data,
+		);
 		try {
 			await this.update(id, {
 				calculatedAmount: amounts,
 				finalAmount: `${amounts?.totalPayout}`,
-				calculationsProcessedAt: new Date()
-			})
+				calculationsProcessedAt: new Date(),
+			});
 		} catch (err) {
-			console.error(`Error updating benefit details for application: ${id}`, err.message);
-			throw new BadRequestException(`Failed to update benefit details for application ${id}`);
+			console.error(
+				`Error updating benefit details for application: ${id}`,
+				err.message,
+			);
+			throw new BadRequestException(
+				`Failed to update benefit details for application ${id}`,
+			);
 		}
 		return amounts;
 	}
@@ -517,25 +665,29 @@ export class ApplicationsService {
 			let amount = 0;
 
 			switch (rule.type) {
-				case "fixed":
+				case 'fixed':
 					amount = rule.fixedValue ?? 0;
 					break;
 
-				case "lookup": {
+				case 'lookup': {
 					const inputVal = applicationData[rule.inputFields[0]];
-					const found = rule.lookupTable.find((row: any) => row.match === inputVal);
+					const found = rule.lookupTable.find(
+						(row: any) => row.match === inputVal,
+					);
 					amount = found ? found.amount : 0;
 					break;
 				}
 
-				case "conditional": {
+				case 'conditional': {
 					for (const condition of rule.conditions) {
 						const matches = condition.ifExpr
 							? this.evaluateIfExpr(condition.ifExpr, applicationData)
-							: Object.entries(condition.if).every(([k, v]) => applicationData[k] === v);
+							: Object.entries(condition.if).every(
+									([k, v]) => applicationData[k] === v,
+								);
 
 						if (matches) {
-							if (condition.then.amount === "value") {
+							if (condition.then.amount === 'value') {
 								amount = Number(applicationData[rule.inputFields[0]]) || 0;
 							} else {
 								amount = Number(condition.then.amount) || 0;
@@ -546,7 +698,7 @@ export class ApplicationsService {
 					break;
 				}
 
-				case "formula":
+				case 'formula':
 					amount = this.evaluateFormula(rule.formula, applicationData);
 					break;
 
@@ -570,15 +722,16 @@ export class ApplicationsService {
 		try {
 			// Replace variable names in the formula with actual values
 			const safeExpr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
-				return typeof context[match] !== "undefined" ? context[match] : "0";
+				return typeof context[match] !== 'undefined' ? context[match] : '0';
 			});
 
 			// Only allow safe characters
-			if (!/^[\d\s+\-*/().]+$/.test(safeExpr)) throw new Error("Unsafe formula");
+			if (!/^[\d\s+\-*/().]+$/.test(safeExpr))
+				throw new Error('Unsafe formula');
 
 			return Function(`"use strict"; return (${safeExpr})`)(); // evaluated safely
 		} catch (err) {
-			console.error("Formula evaluation error:", err.message);
+			console.error('Formula evaluation error:', err.message);
 			return 0;
 		}
 	}
@@ -589,32 +742,42 @@ export class ApplicationsService {
 	evaluateIfExpr(expr: string, context: ApplicationData): boolean {
 		try {
 			// Basic parser for comparison operators
-			const comparisons = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g);
+			const comparisons = expr.match(
+				/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(true|false|\d+|"[^"]*"|'.*?')/g,
+			);
 
 			if (!comparisons) return false;
 
-			return comparisons.every(part => {
-				const [, key, op, rawVal] = part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
+			return comparisons.every((part) => {
+				const [, key, op, rawVal] =
+					part.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*([=!<>]+)\s*(.*)/) || [];
 				let actual = context[key];
 				let expected: any = rawVal;
 
-				if (expected === "true") expected = true;
-				else if (expected === "false") expected = false;
+				if (expected === 'true') expected = true;
+				else if (expected === 'false') expected = false;
 				else if (!isNaN(Number(expected))) expected = Number(expected);
-				else expected = expected.replace(/^['"]|['"]$/g, "");
+				else expected = expected.replace(/^['"]|['"]$/g, '');
 
 				switch (op) {
-					case "===": return actual === expected;
-					case "!==": return actual !== expected;
-					case ">": return actual > expected;
-					case "<": return actual < expected;
-					case ">=": return actual >= expected;
-					case "<=": return actual <= expected;
-					default: return false;
+					case '===':
+						return actual === expected;
+					case '!==':
+						return actual !== expected;
+					case '>':
+						return actual > expected;
+					case '<':
+						return actual < expected;
+					case '>=':
+						return actual >= expected;
+					case '<=':
+						return actual <= expected;
+					default:
+						return false;
 				}
 			});
 		} catch (err) {
-			console.error("Expression evaluation error:", err.message);
+			console.error('Expression evaluation error:', err.message);
 			return false;
 		}
 	}
@@ -630,7 +793,7 @@ export class ApplicationsService {
 
 		const benefitDefinition = await this.benefitsService.getBenefitsById(
 			`${application.benefitId}`,
-			req
+			req,
 		);
 		if (!benefitDefinition?.data) {
 			throw new NotFoundException(
@@ -710,7 +873,7 @@ export class ApplicationsService {
 			return { applicationDetails, eligibilityRules, strictCheck };
 		} catch (err) {
 			throw new BadRequestException(
-				`Failed to format eligibility rules: ${err.message}. Application ID: ${application?.id}, Benefit ID: ${application?.benefitId}`
+				`Failed to format eligibility rules: ${err.message}. Application ID: ${application?.id}, Benefit ID: ${application?.benefitId}`,
 			);
 		}
 	}
@@ -744,15 +907,21 @@ export class ApplicationsService {
 		}
 	}
 
-	private generateEligibilityDetailsFields(app: any, fields: string[]): string[] {
+	private generateEligibilityDetailsFields(
+		app: any,
+		fields: string[],
+	): string[] {
 		const eligibilityData = app.eligibilityResult ?? {};
 		// Get the application details from either eligibleUsers or ineligibleUsers
-		const applicationDetails = eligibilityData.eligibleUsers?.[0]?.details ?? 
-			eligibilityData.ineligibleUsers?.[0]?.details ?? {};
-		
+		const applicationDetails =
+			eligibilityData.eligibleUsers?.[0]?.details ??
+			eligibilityData.ineligibleUsers?.[0]?.details ??
+			{};
+
 		return fields.map((field) => {
 			if (field === 'reasons') {
-				const reasons = applicationDetails.reasons?.map(r => r.reason).join('; ') ?? '';
+				const reasons =
+					applicationDetails.reasons?.map((r) => r.reason).join('; ') ?? '';
 				return reasons;
 			}
 			return '';
@@ -793,7 +962,8 @@ export class ApplicationsService {
 			eligibilityDetailsFields = [],
 		} = reportConfig;
 
-		const applications = await this.fetchApplicationsEligibilityResults(benefitId);
+		const applications =
+			await this.fetchApplicationsEligibilityResults(benefitId);
 
 		const finalAppDataFields = this.resolveDynamicFields(
 			applications,
@@ -825,8 +995,15 @@ export class ApplicationsService {
 				...this.generateAppDataFields(app, finalAppDataFields),
 				...this.generateCalcAmountFields(app, finalCalcAmountFields),
 				...this.generateAppTableFields(app, applicationTableDataFields),
-				...(eligibilityResultColumnDataFields ? this.generateEligibilityFields(app, eligibilityResultColumnDataFields) : []),
-				...(eligibilityDetailsFields ? this.generateEligibilityDetailsFields(app, eligibilityDetailsFields) : []),
+				...(eligibilityResultColumnDataFields
+					? this.generateEligibilityFields(
+							app,
+							eligibilityResultColumnDataFields,
+						)
+					: []),
+				...(eligibilityDetailsFields
+					? this.generateEligibilityDetailsFields(app, eligibilityDetailsFields)
+					: []),
 			];
 			csvRows.push(this.escapeCsvRow(row));
 		}
@@ -834,18 +1011,20 @@ export class ApplicationsService {
 		return csvRows.join('\n');
 	}
 
-	async fetchApplicationsEligibilityResults(benefitId){
+	async fetchApplicationsEligibilityResults(benefitId) {
 		try {
 			return await this.prisma.applications.findMany({
 				where: {
 					benefitId: benefitId,
 					eligibilityStatus: {
-						in: ['eligible', 'ineligible']
-					}
+						in: ['eligible', 'ineligible'],
+					},
 				},
 			});
 		} catch (error) {
-			throw new BadRequestException(`Failed to fetch applications: ${error.message}`);
+			throw new BadRequestException(
+				`Failed to fetch applications: ${error.message}`,
+			);
 		}
 	}
 }
