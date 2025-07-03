@@ -401,7 +401,7 @@ export class BenefitsService {
 			const statusData = new StatusResponseDto();
 
 			// Extract order ID from the request body
-			const orderId = 'TLEXP_E114EC7A_1750913727977';
+			const orderId = statusDto?.message?.order_id;
 
 			// Fetch application details using the order ID
 			const applicationData = await this.applicationsService.find({
