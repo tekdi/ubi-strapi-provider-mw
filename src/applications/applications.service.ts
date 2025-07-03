@@ -23,8 +23,6 @@ import { ConfigService } from '@nestjs/config';
 import { AclService } from '../common/service/acl';
 import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 import { Buffer } from 'buffer';
-import { log } from 'console';
-
 export interface BenefitDetail {
 	id: string;
 	documentId: string;
