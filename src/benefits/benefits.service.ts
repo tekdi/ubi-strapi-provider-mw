@@ -424,7 +424,7 @@ export class BenefitsService {
 
 			// Extract status from application data and add it to benefit data
 			const status = application.status.toUpperCase();
-			const remark = application.remark;
+			const remark = application.remark ?? '';
 
 			let statusCode;
 
