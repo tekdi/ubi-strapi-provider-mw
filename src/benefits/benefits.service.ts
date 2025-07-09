@@ -424,28 +424,41 @@ export class BenefitsService {
 
 			// Extract status from application data and add it to benefit data
 			const status = application.status.toUpperCase();
-			// const remark = application.remark;
+			const remark = application.remark ?? '';
 
 			let statusCode;
+
 			if (status === 'APPROVED') {
 				statusCode = {
 					code: 'APPLICATION-APPROVED',
-					name: 'Application Approved',
+					name: JSON.stringify({
+						status: 'Application Approved',
+						comment: remark,
+					}),
 				};
 			} else if (status === 'REJECTED') {
 				statusCode = {
 					code: 'APPLICATION-REJECTED',
-					name: 'Application Rejected',
+					name: JSON.stringify({
+						status: 'Application Rejected',
+						comment: remark,
+					}),
 				};
 			} else if (status === 'RESUBMIT') {
 				statusCode = {
 					code: 'APPLICATION-RESUBMIT',
-					name: 'Application Resubmit',
+					name: JSON.stringify({
+						status: 'Application Resubmit',
+						comment: remark,
+					}),
 				};
 			} else {
 				statusCode = {
-					code: 'APPLICATION-' + status, // from db
-					name: 'Application ' + titleCase(application.status),
+					code: 'APPLICATION-' + status,
+					name: JSON.stringify({
+						status: 'Application ' + titleCase(application.status),
+						comment: remark,
+					}),
 				};
 			}
 
