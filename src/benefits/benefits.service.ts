@@ -23,7 +23,6 @@ import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { ConfirmResponseDto } from './dto/confirm-response.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
 import { StatusResponseDto } from './dto/status-response.dto';
-import { log } from 'console';
 
 @Injectable()
 export class BenefitsService {
