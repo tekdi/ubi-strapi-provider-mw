@@ -161,7 +161,7 @@ export class ApplicationsService {
 						benefitId,
 						bapId,
 						applicationData: JSON.stringify(normalFields),
-
+						remark: null,
 						updatedAt: new Date(),
 						status: 'pending',
 					},
