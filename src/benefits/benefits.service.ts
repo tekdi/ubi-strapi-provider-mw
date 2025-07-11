@@ -144,15 +144,20 @@ export class BenefitsService {
 
 	async getBenefitsByIdStrapi(id: string, authToken?: string): Promise<any> {
 		let url = `${this.strapiUrl}/api/benefits/${id}${this.urlExtension}`;
+		let authorizationHeader = `Bearer ${this.strapiToken}`;
 
-		if (authToken) {
+		// If authToken is provided and it's not the same as the default strapi token,
+		// use the content-manager endpoint with the provided token
+		if (authToken && authToken !== this.strapiToken && authToken !== `Bearer ${this.strapiToken}`) {
 			url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit/${id}`;
+			// Ensure the token has Bearer prefix
+			authorizationHeader = authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`;
 		}
 
 		const response = await this.httpService.axiosRef.get(url, {
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: authToken ?? `Bearer ${this.strapiToken}`,
+				Authorization: authorizationHeader,
 			},
 		});
 
