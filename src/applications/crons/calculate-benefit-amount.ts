@@ -55,7 +55,11 @@ export class ApplicationStatusUpdate {
     private async processApplications(applications: any[]) {
         for (const app of applications) {
             try {
-                await this.applicationsService.calculateBenefit(Number(app.id), `Bearer ${this.strapiToken}`)
+                if (this.strapiToken) {
+                    await this.applicationsService.calculateBenefit(Number(app.id), this.strapiToken)
+                } else {
+                    Logger.error('STRAPI_TOKEN is not available for benefit calculation');
+                }
             } catch (err) {
                 Logger.warn(`Failed to update application ${app.id}: ${err.message}`);
             }
