@@ -4,7 +4,7 @@
 This is a <a href="http://nestjs.com/" target="blank">Nestjs</a> based application that serves as a middleware layer between external systems and Strapi CMS. It manages benefits, applications, file storage, and provider administration with comprehensive Strapi integration.
 
 ## 📚 Development Guidelines
-- **[Cursor Rules Guide](docs/cursor-rule-guide.md)** - Comprehensive guide on when and how to use cursor rules for maintaining code quality and consistency
+- **[Cursor Rules Guide](docs/cursor-rules-guide.md)** - Comprehensive guide on when and how to use cursor rules for maintaining code quality and consistency
 
 ## Project setup
 ```bash
