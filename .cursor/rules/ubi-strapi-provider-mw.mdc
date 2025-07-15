@@ -1,459 +1,125 @@
-# UBI Strapi Provider Middleware (ubi-strapi-provider-mw)
+# UBI Strapi Provider Middleware - Cursor Rules
 
 ## Project Overview
+NestJS-based middleware application serving as an intermediary between external systems and Strapi CMS for Universal Basic Income (UBI) benefit management. Implements ONDC-compliant financial services with comprehensive document management.
 
-The UBI Strapi Provider Middleware is a NestJS-based application that serves as a middleware layer between external systems and Strapi CMS. It manages benefits, applications, file storage, and provider administration with comprehensive Strapi integration.
+## Technology Stack
+- **Framework**: NestJS with TypeScript
+- **Database**: PostgreSQL with Prisma ORM
+- **CMS**: Strapi with JWT authentication
+- **File Storage**: AWS S3 / Local storage abstraction
+- **Standards**: ONDC/DSEP compliance for financial services
+- **Security**: AES-256-GCM encryption for sensitive data
+- **Background Jobs**: Cron-based processing
+- **Validation**: class-validator with comprehensive DTOs
 
-## Core Architecture & Technology Stack
-
-### Technology Stack
-- **Framework**: NestJS v11.0.1 with TypeScript
-- **Database**: PostgreSQL with Prisma ORM v6.7.0
-- **CMS Integration**: Strapi CMS via REST API
-- **File Storage**: AWS S3 and Local Storage adapters
-- **Authentication**: JWT-based with Strapi admin integration
-- **Documentation**: Swagger/OpenAPI v11.1.6
-- **Testing**: Jest with E2E testing support
-- **Code Quality**: ESLint, Prettier, Husky git hooks
-
-### Key Dependencies
-```json
-{
-  "core": {
-    "@nestjs/common": "^11.0.1",
-    "@nestjs/core": "^11.0.1",
-    "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/swagger": "^11.1.6",
-    "@nestjs/schedule": "^6.0.0"
-  },
-  "database": {
-    "@prisma/client": "^6.7.0",
-    "prisma": "^6.7.0"
-  },
-  "storage": {
-    "@aws-sdk/client-s3": "^3.828.0",
-    "@aws-sdk/s3-request-presigner": "^3.825.0",
-    "@flystorage/aws-s3": "^1.1.1",
-    "@flystorage/file-storage": "^1.1.0"
-  },
-  "validation": {
-    "class-validator": "^0.14.2",
-    "class-transformer": "^0.5.1"
-  },
-  "http": {
-    "@nestjs/axios": "^4.0.0",
-    "axios": "^1.9.0"
-  }
-}
-```
-
-## Project Structure & Modules
-
-### Core Modules Architecture
+## Module Structure
 ```
 src/
-├── app.module.ts                 # Main application module
-├── main.ts                       # Application bootstrap
-├── prisma.service.ts             # Prisma database service
-├── benefits/                     # Benefits management module
-├── applications/                 # Applications management module
-├── applicationFiles/             # File management module
-├── auth/                         # Authentication module
-├── strapi-admin/                 # Strapi admin integration
-├── verifications/                # Document verification module
-├── services/
-│   └── storage-providers/        # File storage adapters
-├── common/                       # Shared utilities and middleware
-└── docs/                         # API documentation
+├── benefits/              # ONDC benefit discovery and DSEP integration
+├── applications/          # Application lifecycle with encryption and cron jobs
+├── applicationFiles/      # Multi-provider file storage and verification
+├── auth/                  # Strapi JWT integration
+├── strapi-admin/         # Programmatic Strapi role/user management
+├── verifications/        # Document verification workflows
+├── services/storage-providers/ # S3/Local storage abstraction
+└── common/middleware/    # Global auth middleware
 ```
 
-### Module Responsibilities
+## Key Architectural Patterns
 
-#### Benefits Module
-- **Purpose**: Manages financial benefits and scholarships
-- **Key Features**:
-  - Search benefits from Strapi CMS
-  - ONDC-compliant data transformation
-  - DSEP (Digital Services Ecosystem Platform) integration
-  - Benefit selection and retrieval
+### ONDC/DSEP Integration
+- Domain: `"onest:financial-support"`
+- DSEP endpoints: `/benefits/dsep/*`
+- Transaction workflows: `init`, `confirm`, `status` with UUID tracking
+- Message format: context + message structure with BPP/BAP configuration
 
-#### Applications Module
-- **Purpose**: Handles benefit applications and status management
-- **Key Features**:
-  - CRUD operations for applications
-  - Status tracking (pending, approved, rejected, in_progress)
-  - Benefit amount calculations
-  - Eligibility checking with cron jobs
-  - Application data encryption
+### Strapi Integration
+- JWT token authentication via `STRAPI_TOKEN`
+- Content transformation from Strapi to ONDC format
+- Admin API for user/role management
+- Comprehensive field population for relationships
 
-#### ApplicationFiles Module
-- **Purpose**: Manages application-related file uploads and storage
-- **Key Features**:
-  - File upload and storage management
-  - Verification status tracking
-  - Multiple storage provider support (S3, Local)
-  - File metadata management
-
-#### Strapi Admin Module
-- **Purpose**: Integrates with Strapi admin panel for provider management
-- **Key Features**:
-  - Role creation and management
-  - User creation with role assignment
-  - Permission configuration
-  - Provider catalog management
-
-#### Auth Module
-- **Purpose**: Handles authentication and authorization
-- **Key Features**:
-  - Strapi admin login integration
-  - JWT token management
-  - User role validation
-  - Middleware-based authentication
-
-## Database Schema & Models
-
-### Core Models
-
-#### Applications Model
-```prisma
-model Applications {
-  id                       Int                @id @default(autoincrement())
-  benefitId                String
-  status                   String
-  applicationData          String             // Encrypted form data
-  customerId               String?
-  bapId                    String?
-  calculatedAmount         Json?
-  finalAmount              String?
-  orderId                  String?
-  remark                   String?
-  updatedBy                Int?
-  actionLog                Json?
-  calculationsProcessedAt  DateTime?
-  documentVerificationStatus String?
-  eligibilityStatus        String?            @default("pending")
-  eligibilityResult        Json?
-  eligibilityCheckedAt     DateTime?
-  applicationFiles         ApplicationFiles[] @relation("ApplicationsToApplicationFiles")
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-}
+### Data Security
+```typescript
+// Encryption configuration
+encryptionMap = {
+  Applications: ['applicationData'] // Field-level AES-256-GCM
+};
+// Supports key rotation with OLD_ENCRYPTION_KEY fallback
 ```
 
-#### ApplicationFiles Model
-```prisma
-model ApplicationFiles {
-  id                 Int          @id @default(autoincrement())
-  storage            String
-  filePath           String?
-  verificationStatus Json?
-  applicationId      Int
-  application        Applications @relation(fields: [applicationId], references: [id])
-  issuerName         String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-}
+### File Storage Abstraction
+```typescript
+// Dynamic provider selection
+FILE_STORAGE_PROVIDER = 's3' | 'local'
+// Factory pattern for storage service injection
 ```
 
-#### Users Model
-```prisma
-model Users {
-  id          Int       @id @default(autoincrement())
-  s_id        String    @unique
-  roles       String[]
-  s_roles     String[]
-  first_name  String
-  middle_name String?
-  last_name   String?
-  email       String    @unique
-  phone       String?
-  enabled     Boolean   @default(true)
-  blocked     Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime? @updatedAt
-}
+### Authentication Middleware
+```typescript
+// Global optional authentication
+consumer.apply(AuthMiddleware).forRoutes({ path: '/*', method: RequestMethod.ALL });
+// Adds req.mw_userid when token present
 ```
 
-#### Provider Model
-```prisma
-model Provider {
-  id                       Int       @id @default(autoincrement())
-  catalogManagerId         String    @unique
-  catalogManagerDocumentId String    @unique
-  name                     String    @unique
-  catalogManagerCode       String    @unique
-  catalogManagerRole       String[]
-  description              String
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-  publishedAt              DateTime?
-  locale                   String?
-}
-```
+## Environment Configuration
+```bash
+# Core Integration
+DATABASE_URL=postgresql://...
+STRAPI_URL=https://strapi.domain.com
+STRAPI_TOKEN=your_strapi_token
 
-## API Design & Endpoints
-
-### Benefits API
-```
-GET    /benefits/getById/:id          # Get benefit by ID
-POST   /benefits/search               # Search benefits
-POST   /benefits/dsep/search          # DSEP benefit search
-GET    /benefits/dsep/select/:id      # DSEP benefit selection
-```
-
-### Applications API
-```
-GET    /applications                  # List applications (filtered by benefitId)
-GET    /applications/:id              # Get application by ID
-POST   /applications                  # Create new application
-PUT    /applications/:id              # Update application
-PATCH  /applications/:id/status       # Update application status
-```
-
-### ApplicationFiles API
-```
-GET    /applicationFiles              # List application files
-GET    /applicationFiles/:id          # Get file by ID
-POST   /applicationFiles              # Upload new file
-PUT    /applicationFiles/:id          # Update file metadata
-```
-
-### Strapi Admin API
-```
-GET    /strapi-admin/roles            # Get all Strapi roles
-POST   /strapi-admin/roles            # Create new role
-POST   /strapi-admin/users            # Create new user
-```
-
-### Auth API
-```
-POST   /auth/login                    # Admin login
-```
-
-## Configuration & Environment Variables
-
-### Required Environment Variables
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-
-# Strapi Integration
-STRAPI_URL=https://your-strapi-instance.com
-STRAPI_TOKEN=your-strapi-api-token
+# ONDC Configuration  
+BPP_ID=provider.domain.com
+BPP_URI=https://provider.domain.com/
+BAP_ID=consumer.domain.com
+BAP_URI=https://consumer.domain.com/
 
 # File Storage
 FILE_STORAGE_PROVIDER=s3|local
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_S3_BUCKET_NAME=your-bucket-name
+AWS_S3_BUCKET_NAME=bucket_name
 
 # Security
-ENCRYPTION_KEY=your-32-character-encryption-key
+ENCRYPTION_KEY=base64_encoded_32_byte_key
 
-# Application
-PORT=3000
-NODE_ENV=development|production
+# Background Jobs
+BENEFIT_CALCULATIONS_CRON_TIME=*/30 * * * *
+ELIGIBILITY_CHECK_CRON_TIME=*/30 * * * *
 ```
 
-### Configuration Validation
-- All required environment variables are validated at startup
-- Missing configuration throws descriptive errors
-- Sensitive data is encrypted using AES-256
+## Business Logic Patterns
 
-## File Storage Architecture
+### Application Status Flow
+- States: `pending`, `approved`, `rejected`, `in_progress`
+- Audit trails with `updatedBy` and `actionLog`
+- Encrypted `applicationData` field for sensitive information
 
-### Storage Provider Pattern
-```typescript
-// Storage adapters implement common interface
-interface FileStorageService {
-  upload(file: Buffer, path: string): Promise<string>;
-  download(path: string): Promise<Buffer>;
-  delete(path: string): Promise<void>;
-  getSignedUrl(path: string, expiresIn?: number): Promise<string>;
-}
+### Benefits Processing
+- ONDC-compliant message transformation
+- Dynamic benefit amount calculation
+- Eligibility checking with detailed results
+- Provider catalog management through Strapi
 
-// Supported providers
-- S3StorageAdapter: AWS S3 integration
-- LocalStorageAdapter: Local file system storage
-```
-
-### File Storage Configuration
-- Dynamic provider selection based on environment
-- Automatic configuration validation
-- Support for multiple storage backends
+### File Handling
+- Base64 automatic decode and upload
 - Signed URL generation for secure access
+- External verification service integration
+- Multi-provider storage support
 
-## Security Implementation
+## API Conventions
+- **50MB request limit** for file uploads
+- **Global validation** with `whitelist: true`
+- **Consistent error format** via AllExceptionsFilter
+- **ONDC endpoint structure**: `/benefits/dsep/*` for DSEP-specific operations
 
-### Authentication & Authorization
-- JWT-based authentication with Strapi integration
-- Role-based access control (RBAC)
-- Middleware-based route protection
-- Admin-only endpoints for sensitive operations
+## Background Processing
+- **Configurable cron expressions** from environment
+- **Automatic scheduler registration** via `SchedulerRegistry`
+- **Benefit calculations** and **eligibility checks** as separate jobs
 
-### Data Protection
-- Field-level encryption for sensitive data
-- AES-256 encryption for application data
-- Secure token handling
-- Input validation and sanitization
-
-### API Security
-- Request size limits (50MB)
-- CORS configuration
-- Rate limiting support
-- Comprehensive error handling
-
-## Scheduled Tasks & Background Processing
-
-### Cron Jobs
-```typescript
-// Application status updates
-@Cron('0 */6 * * *') // Every 6 hours
-export class ApplicationStatusUpdate {
-  // Update application statuses
-}
-
-// Eligibility checking
-@Cron('0 */12 * * *') // Every 12 hours
-export class EligibilityStatusUpdate {
-  // Check application eligibility
-}
-```
-
-## Testing Strategy
-
-### Test Structure
-```
-test/
-├── app.e2e-spec.ts              # End-to-end tests
-├── jest-e2e.json               # E2E test configuration
-└── fixtures/                   # Test data fixtures
-
-src/
-├── **/*.spec.ts                # Unit tests for each module
-└── **/__tests__/              # Integration tests
-```
-
-### Testing Commands
-```bash
-npm run test                    # Unit tests
-npm run test:watch             # Watch mode
-npm run test:cov               # Coverage report
-npm run test:e2e               # End-to-end tests
-npm run test:debug             # Debug mode
-```
-
-## Development Workflow
-
-### Code Quality Tools
-- **ESLint**: Code linting with security and SonarJS rules
-- **Prettier**: Code formatting
-- **Husky**: Git hooks for pre-commit validation
-- **TypeScript**: Strict type checking
-
-### Development Scripts
-```bash
-npm run start:dev              # Development mode with hot reload
-npm run start:debug            # Debug mode
-npm run build                  # Production build
-npm run lint                   # Lint and fix code
-npm run format                 # Format code with Prettier
-```
-
-## Deployment & Production
-
-### Production Considerations
-- Environment-specific configurations
-- Database migration management
-- Health check endpoints
-- Logging and monitoring
-- Performance optimization
-
-### Docker Support
-- Containerized deployment ready
-- Environment variable configuration
-- Multi-stage builds for optimization
-
-## Integration Patterns
-
-### Strapi Integration
-- REST API communication with Strapi
-- Admin panel integration for user/role management
-- Content type synchronization
-- Permission management
-
-### ONDC Compliance
-- ONDC message format transformation
-- DSEP integration support
-- Standardized API responses
-- Transaction tracking
-
-### External Service Integration
-- HTTP client with retry logic
-- Circuit breaker patterns
-- Error handling and fallbacks
-- Request/response logging
-
-## Best Practices & Guidelines
-
-### Code Organization
-- Feature-based module structure
-- Clear separation of concerns
-- Dependency injection patterns
-- Consistent naming conventions
-
-### Error Handling
-- Global exception filters
-- Structured error responses
-- Comprehensive logging
-- Graceful degradation
-
-### Performance
-- Database query optimization
-- Caching strategies
-- Connection pooling
-- Background task processing
-
-### Security
-- Input validation and sanitization
-- Authentication and authorization
-- Data encryption
-- Secure communication
-
-## Common Patterns & Anti-Patterns
-
-### Recommended Patterns
-- Use DTOs for request/response validation
-- Implement proper error handling
-- Follow NestJS module structure
-- Use dependency injection
-- Implement comprehensive logging
-
-### Anti-Patterns to Avoid
-- Don't skip input validation
-- Don't expose sensitive data in responses
-- Don't ignore error handling
-- Don't use synchronous operations for I/O
-- Don't skip proper authentication checks
-
-## Troubleshooting & Debugging
-
-### Common Issues
-- Database connection problems
-- Strapi integration errors
-- File upload failures
-- Authentication issues
-- Environment configuration problems
-
-### Debugging Tools
-- Comprehensive logging
-- Error tracking
-- Health check endpoints
-- Development mode debugging
-- Test coverage analysis
-description:
-globs:
-alwaysApply: false
----
+## Development Patterns
+- **DTO naming**: `Create*Dto`, `Update*Dto`, `List*Dto`
+- **Service methods**: `findUniqueApplication`, `getBenefitsByIdStrapi`
+- **Error handling**: Structured responses with security-aware logging
+- **Database**: Prisma middleware for transparent encryption/decryption
