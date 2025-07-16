@@ -90,6 +90,7 @@ export class BenefitsService {
 				}
 			} catch (error) {
 				console.error('Error fetching user information:', error);
+				throw new InternalServerErrorException('Failed to fetch user information');
 			}
 		}
 
@@ -252,13 +253,16 @@ export class BenefitsService {
 					}
 				} catch (error) {
 					console.error('Error fetching user information:', error);
+					throw new InternalServerErrorException('Failed to fetch user information');
 				}
 			}
+
+			let benefitResponse;
 
 			// If not Super Admin, check if the user can access this specific benefit
 			if (!isSuperAdmin && userId) {
 				// Get the benefit data to check createdBy
-				const benefitResponse = await this.getBenefitsByIdStrapi(id, authToken);
+				benefitResponse = await this.getBenefitsByIdStrapi(id, authToken);
 				const benefitData = benefitResponse?.data?.data;
 
 				if (benefitData?.createdBy?.id) {
@@ -301,8 +305,12 @@ export class BenefitsService {
 				}
 			}
 
-			const response = await this.getBenefitsByIdStrapi(id, authToken);
-			return response.data;
+			// Reuse the response if already fetched, otherwise fetch it
+			if (!benefitResponse) {
+				benefitResponse = await this.getBenefitsByIdStrapi(id, authToken);
+			}
+
+			return benefitResponse.data;
 		} catch (error) {
 			if (error.isAxiosError) {
 				// Handle AxiosError and rethrow as HttpException
