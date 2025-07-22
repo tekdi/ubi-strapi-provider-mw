@@ -23,6 +23,7 @@ import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { ConfirmResponseDto } from './dto/confirm-response.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
 import { StatusResponseDto } from './dto/status-response.dto';
+import { SearchResponseDto, TagDto } from './dto/search-response.dto';
 
 @Injectable()
 export class BenefitsService {
@@ -184,12 +185,12 @@ export class BenefitsService {
     }
   }
 
-  async searchBenefits(searchRequest: SearchRequestDto,authToken?: string): Promise<any> {
+  async searchBenefits(searchRequest: SearchRequestDto, authToken?: string): Promise<SearchResponseDto> {
     if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
       let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
-      
+
       // if (authToken) {
-        // url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
+      // url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
       //}
 
       this.checkBapIdAndUri(searchRequest?.context?.bap_id, searchRequest?.context?.bap_uri);
@@ -203,10 +204,11 @@ export class BenefitsService {
         },
       );
 
-      let mappedResponse;
+      let mappedResponse = new SearchResponseDto();
 
       if (response?.data) {
         mappedResponse = await this.transformScholarshipsToOnestFormat(
+          searchRequest,
           response?.data?.data,
           'on_search',
         );
@@ -227,6 +229,7 @@ export class BenefitsService {
       let mappedResponse;
       if (response?.data) {
         mappedResponse = await this.transformScholarshipsToOnestFormat(
+          body,
           [response?.data?.data],
           'on_select',
         );
@@ -259,6 +262,7 @@ export class BenefitsService {
 
       if (benefitData?.data) {
         mappedResponse = await this.transformScholarshipsToOnestFormat(
+          selectDto,
           [benefitData?.data?.data],
           'on_init',
         );
@@ -331,6 +335,7 @@ export class BenefitsService {
       let mappedResponse;
       if (benefitData?.data) {
         mappedResponse = await this.transformScholarshipsToOnestFormat(
+          confirmDto,
           [benefitData?.data?.data],
           'on_confirm',
         );
@@ -502,6 +507,7 @@ export class BenefitsService {
       let mappedResponse;
       if (benefitData?.data) {
         mappedResponse = await this.transformScholarshipsToOnestFormat(
+          statusDto,
           [benefitData?.data?.data],
           'on_status',
         );
@@ -551,7 +557,7 @@ export class BenefitsService {
     this.bapUri = bapUri;
   }
 
-  async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
+  async transformScholarshipsToOnestFormat(reqData, apiResponseArray: any[], action?) {
     if (!Array.isArray(apiResponseArray)) {
       throw new Error('Expected an array of benefits');
     }
@@ -614,7 +620,7 @@ export class BenefitsService {
             applicationFormTags,
           ]
             .filter(Boolean)
-            .flat(),
+            .flat() as TagDto[],
         };
       }),
     );
@@ -630,10 +636,11 @@ export class BenefitsService {
         bap_uri: this.bapUri,
         bpp_id: this.bppId,
         bpp_uri: this.bppUri,
+        ttl: 'PT10M',
+        ...reqData.context,
         transaction_id: uuidv4(),
         message_id: uuidv4(),
         timestamp: new Date().toISOString(),
-        ttl: 'PT10M',
       },
       message: {
         catalog: {
@@ -648,7 +655,7 @@ export class BenefitsService {
                   firstScholarship?.providingEntity?.name ?? 'Unknown Provider',
                 short_desc: 'Multiple scholarships offered',
                 images: firstScholarship?.imageUrl
-                  ? [{ url: firstScholarship.imageUrl }]
+                  ? [firstScholarship.imageUrl]
                   : [],
               },
               categories: [
