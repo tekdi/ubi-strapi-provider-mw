@@ -34,7 +34,7 @@ export class BenefitsService {
 	private bapId: string;
 	private bapUri: string;
 	private readonly urlExtension: string =
-		'?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][options]=*&populate[benefitCalculationRules]=*';
+		'?populate[tags]=*&populate[benefits][on][benefit.financial-benefit][populate]=*&populate[benefits][on][benefit.non-monetary-benefit][populate]=*&populate[exclusions]=*&populate[references]=*&populate[providingEntity][populate][address]=*&populate[providingEntity][populate][contactInfo]=*&populate[sponsoringEntities][populate][address]=*&populate[sponsoringEntities][populate][contactInfo]=*&populate[eligibility][populate][criteria]=*&populate[documents]=*&populate[applicationProcess]=*&populate[applicationForm][populate][fields][populate][options]=*&populate[benefitCalculationRules]=*';
 
 	constructor(
 		private readonly httpService: HttpService,
@@ -857,8 +857,25 @@ export class BenefitsService {
 		};
 	}
 
-	async formatApplicationForm(applicationForm) {
+	async formatApplicationForm(applicationForm: any) {
 		if (!applicationForm?.length) return null;
+
+		// Flatten all fields from all field groups
+		const allFields: any[] = [];
+		
+		applicationForm.forEach((fieldGroup: any) => {
+			if (fieldGroup.fields && Array.isArray(fieldGroup.fields)) {
+				fieldGroup.fields.forEach((field: any) => {
+					// Add fieldsGroupName and fieldsGroupLabel to each field
+					const enrichedField = {
+						...field,
+						fieldsGroupName: fieldGroup.fieldsGroupName,
+						fieldsGroupLabel: fieldGroup.fieldsGroupLabel
+					};
+					allFields.push(enrichedField);
+				});
+			}
+		});
 
 		return {
 			display: true,
@@ -866,12 +883,12 @@ export class BenefitsService {
 				code: 'applicationForm',
 				name: 'Application Form',
 			},
-			list: applicationForm.map((applicationForm) => ({
+			list: allFields.map((field) => ({
 				descriptor: {
-					code: 'applicationForm',
-					name: 'Application Form',
+					code: 'applicationFormField-' + field.name,
+					name: 'Application Form Field - ' + field.label,
 				},
-				value: JSON.stringify(applicationForm),
+				value: JSON.stringify(field),
 				display: true,
 			})),
 		};
