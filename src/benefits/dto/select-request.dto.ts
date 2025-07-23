@@ -6,7 +6,7 @@ import { BENEFIT_CONSTANTS } from '../benefit.constants';
 export class ContextDto {
   @ApiProperty({
     description: 'Domain of the request',
-    example: 'onest:financial-support'
+    example: BENEFIT_CONSTANTS.FINANCE
   })
   @IsString()
   @IsNotEmpty()
