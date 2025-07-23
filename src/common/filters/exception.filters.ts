@@ -19,7 +19,6 @@ interface ErrorResponse {
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger = new Logger(AllExceptionsFilter.name);
-    private readonly isProduction = process.env.NODE_ENV === 'production';
 
     constructor(private readonly apiId?: string) { }
 
@@ -30,7 +29,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     ): ErrorResponse {
         return {
             statusCode: status,
-            message: this.isProduction ? this.getSanitizedMessage(status, errorMessage) : errorMessage,
+            message: errorMessage,
             timestamp: new Date().toISOString(),
             path: request.url,
         };
@@ -46,7 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             500: 'Internal Server Error',
         };
 
-        return errorMap[status] || 'An unexpected error occurred';
+        return errorMap[status] || errorMessage || 'An unexpected error occurred';
     }
 
     private logError(
@@ -57,7 +56,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const errorDetails = {
             status,
             error: exception.message,
-            stack: this.isProduction ? undefined : exception.stack,
+            stack: exception.stack,
             path: request.url,
             method: request.method,
             timestamp: new Date().toISOString(),
