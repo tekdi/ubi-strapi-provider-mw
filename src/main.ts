@@ -30,6 +30,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('documentation', app, document, {
+    customSiteTitle: 'API Documentation UBI Provider',
     swaggerOptions: {
       tagsSorter: (a, b) => {
         const order = ['Auth', 'Benefits', 'Applications', 'ApplicationFiles'];
