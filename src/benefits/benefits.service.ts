@@ -11,7 +11,6 @@ import { Request } from 'express';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.constants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRandomString, getAuthToken, titleCase } from 'src/common/util';
@@ -24,12 +23,15 @@ import { ConfirmResponseDto } from './dto/confirm-response.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
 import { StatusResponseDto } from './dto/status-response.dto';
 import { SearchResponseDto, TagDto } from './dto/search-response.dto';
+import { SelectRequestDto } from './dto/select-request.dto';
+import { SelectResponseDto } from './dto/select-response.dto';
 
 @Injectable()
 export class BenefitsService {
 	private readonly strapiUrl: string;
 	private readonly strapiToken: string;
 	private readonly providerUrl: string;
+  private readonly domain: string;
 	private readonly bppId: string;
 	private readonly bppUri: string;
 	private bapId: string;
@@ -47,6 +49,7 @@ export class BenefitsService {
 		this.strapiUrl = this.configService.get('STRAPI_URL') ?? '';
 		this.strapiToken = this.configService.get('STRAPI_TOKEN') ?? '';
 		this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') ?? '';
+		this.domain = this.configService.get('DOMAIN') ?? '';
 		this.bppId = this.configService.get('BPP_ID') ?? '';
 		this.bppUri = this.configService.get('BPP_URI') ?? '';
 	}
@@ -57,10 +60,11 @@ export class BenefitsService {
 			!this.strapiUrl.trim().length ||
 			!this.providerUrl.trim().length ||
 			!this.bppId.trim().length ||
-			!this.bppUri.trim().length
+			!this.bppUri.trim().length ||
+      !this.domain.trim().length
 		) {
 			throw new InternalServerErrorException(
-				'One or more required environment variables are missing or empty: STRAPI_URL, STRAPI_TOKEN, PROVIDER_UBA_UI_URL, BAP_ID, BAP_URI, BPP_ID, BPP_URI',
+				'One or more required environment variables are missing or empty: STRAPI_URL, STRAPI_TOKEN, PROVIDER_UBA_UI_URL, BPP_ID, BPP_URI, DOMAIN',
 			);
 		}
 	}
@@ -188,7 +192,7 @@ export class BenefitsService {
 	}
 
   async searchBenefits(searchRequest: SearchRequestDto, authToken?: string): Promise<SearchResponseDto> {
-    if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
+    if (searchRequest.context.domain === this.domain) {
       let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
 
       // if (authToken) {
@@ -222,7 +226,7 @@ export class BenefitsService {
 		throw new BadRequestException('Invalid domain provided');
 	}
 
-	async selectBenefitsById(body: any): Promise<any> {
+	async selectBenefitsById(body: SelectRequestDto): Promise<SelectResponseDto> {
 		this.checkBapIdAndUri(body?.context?.bap_id, body?.context?.bap_uri);
 		try {
 			let id = body.message.order.items[0].id;
@@ -675,18 +679,18 @@ export class BenefitsService {
 
     return {
       context: {
-        domain: 'onest:financial-support',
-        action: action,
         version: '1.1.0',
+        ttl: 'PT10M',
+        ...reqData.context,
+        domain: this.domain,
+        action: action,
+        transaction_id: uuidv4(),
+        message_id: uuidv4(),
+        timestamp: new Date().toISOString(),
         bap_id: this.bapId,
         bap_uri: this.bapUri,
         bpp_id: this.bppId,
         bpp_uri: this.bppUri,
-        ttl: 'PT10M',
-        ...reqData.context,
-        transaction_id: uuidv4(),
-        message_id: uuidv4(),
-        timestamp: new Date().toISOString(),
       },
       message: {
         catalog: {

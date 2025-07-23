@@ -1,6 +1,7 @@
-import { IsString, IsOptional, IsArray, IsBoolean, ValidateNested, IsNumber, IsDateString, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean, ValidateNested, IsNumber, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { BENEFIT_CONSTANTS } from '../benefit.constants';
 
 // Base descriptor DTO
 export class DescriptorDto {
@@ -79,7 +80,7 @@ export class LocationDto {
 
 // Context DTO
 export class ContextDto {
-  @ApiProperty({ example: 'onest:financial-support' })
+  @ApiProperty({ example: BENEFIT_CONSTANTS.FINANCE })
   @IsString()
   domain: string;
 
