@@ -64,8 +64,8 @@ export class ApplicationsController {
   }
 
   @Get(':id')
-  @ApiBasicAuth('access-token')
-  @UseGuards(AuthGuard)
+//   @ApiBasicAuth('access-token')
+//   @UseGuards(AuthGuard)
   @ApiOperation(ApplicationsApiDocs.findOne.operation)
   @ApiParam(ApplicationsApiDocs.findOne.param)
   @ApiResponse(ApplicationsApiDocs.findOne.responses.success)

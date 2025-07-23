@@ -93,6 +93,21 @@ export class ApplicationsService {
 
 		const applicationId = application.id;
 
+		try {
+			await this.calculateBenefit(applicationId, '');
+		} catch (err) {
+			console.error(`Error checking amount for application ${applicationId}:`, err.message);
+			// Continue with the response even if eligibility check fails
+		}
+		try {
+			await this.checkEligibility(applicationId, {} as Request);
+		} catch (eligibilityError) {
+			console.error(`Error checking eligibility for application ${applicationId}:`, eligibilityError.message);
+			// Continue with the response even if eligibility check fails
+		}
+		const updatedData = await this.prisma.applications.findUnique({
+			where: { id: applicationId },
+		});
 		// Step 5: Handle file uploads
 		const applicationFiles = await this.processBase64Files(
 			applicationId,
@@ -101,7 +116,7 @@ export class ApplicationsService {
 
 		// Step 6: Return result
 		return {
-			application,
+			application: updatedData,
 			applicationFiles,
 			message: isUpdate
 				? 'Application updated with resubmitted data.'
@@ -315,7 +330,18 @@ export class ApplicationsService {
 				'You do not have permission to view this application',
 			);
 		}
-
+		try {
+			await this.calculateBenefit(id, authToken);
+		} catch (err) {
+			console.error(`Error checking amount for application ${id}:`, err.message);
+			// Continue with the response even if eligibility check fails
+		}
+		try {
+			await this.checkEligibility(id, req);
+		} catch (eligibilityError) {
+			console.error(`Error checking eligibility for application ${id}:`, eligibilityError.message);
+			// Continue with the response even if eligibility check fails
+		}
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
@@ -781,7 +807,9 @@ export class ApplicationsService {
 	}
 
 	async checkEligibility(applicationId: number, req: Request) {
-		const application = await this.findOne(applicationId, req); // Fetch the application by ID
+		const application = await this.prisma.applications.findUnique({
+			where: { id: applicationId },
+		}); // Fetch the application by ID
 
 		if (!application) {
 			throw new NotFoundException(
@@ -789,9 +817,9 @@ export class ApplicationsService {
 			);
 		}
 
-		const benefitDefinition = await this.benefitsService.getBenefitsById(
+		const benefitDefinition = await this.benefitsService.getBenefitsByIdStrapi(
 			`${application.benefitId}`,
-			req,
+			'',
 		);
 		if (!benefitDefinition?.data) {
 			throw new NotFoundException(
