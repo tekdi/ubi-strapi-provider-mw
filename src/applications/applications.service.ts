@@ -23,6 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { AclService } from '../common/service/acl';
 import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 import { Buffer } from 'buffer';
+import { VerificationService } from '../verifications/verification.service';
 export interface BenefitDetail {
 	id: string;
 	documentId: string;
@@ -43,6 +44,7 @@ export class ApplicationsService {
 		private readonly aclService: AclService,
 		@Inject('FileStorageService')
 		private readonly fileStorageService: IFileStorageService,
+		private readonly verificationService: VerificationService,
 	) {
 		const url = this.configService.get('ELIGIBILITY_API_URL');
 		if (!url) {
@@ -93,10 +95,28 @@ export class ApplicationsService {
 
 		const applicationId = application.id;
 
+		// Step 5: Handle file uploads
+		const applicationFiles = await this.processBase64Files(
+			applicationId,
+			base64Fields,
+		);
+		console.log('applicationFiles', applicationFiles);
+		// Step 6: Verify application VCs (Verifiable Credentials)
+		try {
+			const applicationFileIds = applicationFiles.map(file => String(file.id));
+			await this.verificationService.verifyApplicationVcs({
+				applicationId: String(applicationId),
+				applicationFileIds: applicationFileIds,
+			});
+		} catch (verificationError) {
+			console.error(`Error verifying application VCs for application ${applicationId}:`, verificationError.message);
+			// Continue with the response even if verification fails
+		}
+		
 		try {
 			await this.calculateBenefit(applicationId, '');
 		} catch (err) {
-			console.error(`Error checking amount for application ${applicationId}:`, err.message);
+			console.error(`Error checking amount for application ${applicationId}:`, err);
 			// Continue with the response even if eligibility check fails
 		}
 		try {
@@ -108,12 +128,6 @@ export class ApplicationsService {
 		const updatedData = await this.prisma.applications.findUnique({
 			where: { id: applicationId },
 		});
-		// Step 5: Handle file uploads
-		const applicationFiles = await this.processBase64Files(
-			applicationId,
-			base64Fields,
-		);
-
 		// Step 6: Return result
 		return {
 			application: updatedData,
@@ -330,6 +344,23 @@ export class ApplicationsService {
 				'You do not have permission to view this application',
 			);
 		}
+		// Verify application VCs (Verifiable Credentials)
+		try {
+			// Get application files to extract their IDs
+			const applicationFiles = await this.prisma.applicationFiles.findMany({
+				where: { applicationId: id },
+			});
+			const applicationFileIds = applicationFiles.map(file => String(file.id));
+			
+			await this.verificationService.verifyApplicationVcs({
+				applicationId: String(id),
+				applicationFileIds: applicationFileIds,
+			});
+		} catch (verificationError) {
+			console.error(`Error verifying application VCs for application ${id}:`, verificationError.message);
+			// Continue with the response even if verification fails
+		}
+		
 		try {
 			await this.calculateBenefit(id, authToken);
 		} catch (err) {
