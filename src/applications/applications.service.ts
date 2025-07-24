@@ -100,7 +100,7 @@ export class ApplicationsService {
 			applicationId,
 			base64Fields,
 		);
-		console.log('applicationFiles', applicationFiles);
+
 		// Step 6: Verify application VCs (Verifiable Credentials)
 		try {
 			const applicationFileIds = applicationFiles.map(file => String(file.id));
@@ -343,22 +343,6 @@ export class ApplicationsService {
 			throw new UnauthorizedException(
 				'You do not have permission to view this application',
 			);
-		}
-		// Verify application VCs (Verifiable Credentials)
-		try {
-			// Get application files to extract their IDs
-			const applicationFiles = await this.prisma.applicationFiles.findMany({
-				where: { applicationId: id },
-			});
-			const applicationFileIds = applicationFiles.map(file => String(file.id));
-			
-			await this.verificationService.verifyApplicationVcs({
-				applicationId: String(id),
-				applicationFileIds: applicationFileIds,
-			});
-		} catch (verificationError) {
-			console.error(`Error verifying application VCs for application ${id}:`, verificationError.message);
-			// Continue with the response even if verification fails
 		}
 		
 		try {
