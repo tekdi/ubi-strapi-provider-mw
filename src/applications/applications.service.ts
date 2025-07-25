@@ -23,7 +23,6 @@ import { ConfigService } from '@nestjs/config';
 import { AclService } from '../common/service/acl';
 import { IFileStorageService } from '../services/storage-providers/file-storage.service.interface';
 import { Buffer } from 'buffer';
-import { VerificationService } from '../verifications/verification.service';
 export interface BenefitDetail {
 	id: string;
 	documentId: string;
@@ -43,8 +42,7 @@ export class ApplicationsService {
 		private readonly configService: ConfigService,
 		private readonly aclService: AclService,
 		@Inject('FileStorageService')
-		private readonly fileStorageService: IFileStorageService,
-		private readonly verificationService: VerificationService,
+		private readonly fileStorageService: IFileStorageService
 	) {
 		const url = this.configService.get('ELIGIBILITY_API_URL');
 		if (!url) {
@@ -847,7 +845,7 @@ export class ApplicationsService {
 	async checkEligibility(applicationId: number, req: Request) {
 		const application = await this.prisma.applications.findUnique({
 			where: { id: applicationId },
-		}); // Fetch the application by ID
+		});
 
 		if (!application) {
 			throw new NotFoundException(
@@ -857,7 +855,6 @@ export class ApplicationsService {
 
 		const benefitDefinition = await this.benefitsService.getBenefitsByIdStrapi(
 			`${application.benefitId}`,
-			'',
 		);
 		if (!benefitDefinition?.data) {
 			throw new NotFoundException(
