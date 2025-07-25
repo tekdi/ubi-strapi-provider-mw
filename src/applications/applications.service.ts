@@ -99,38 +99,10 @@ export class ApplicationsService {
 		const applicationFiles = await this.processBase64Files(
 			applicationId,
 			base64Fields,
-		);
-
-		// Step 6: Verify application VCs (Verifiable Credentials)
-		try {
-			const applicationFileIds = applicationFiles.map(file => String(file.id));
-			await this.verificationService.verifyApplicationVcs({
-				applicationId: String(applicationId),
-				applicationFileIds: applicationFileIds,
-			});
-		} catch (verificationError) {
-			console.error(`Error verifying application VCs for application ${applicationId}:`, verificationError.message);
-			// Continue with the response even if verification fails
-		}
-		
-		try {
-			await this.calculateBenefit(applicationId, '');
-		} catch (err) {
-			console.error(`Error checking amount for application ${applicationId}:`, err);
-			// Continue with the response even if eligibility check fails
-		}
-		try {
-			await this.checkEligibility(applicationId, {} as Request);
-		} catch (eligibilityError) {
-			console.error(`Error checking eligibility for application ${applicationId}:`, eligibilityError.message);
-			// Continue with the response even if eligibility check fails
-		}
-		const updatedData = await this.prisma.applications.findUnique({
-			where: { id: applicationId },
-		});
+		);	
 		// Step 6: Return result
 		return {
-			application: updatedData,
+			application,
 			applicationFiles,
 			message: isUpdate
 				? 'Application updated with resubmitted data.'
@@ -195,6 +167,20 @@ export class ApplicationsService {
 						status: 'pending',
 					},
 				});
+				if(updated){
+					await this.prisma.applications.update({
+						where: { id: existing.id },
+						data: {
+							calculatedAmount: Prisma.DbNull,
+							calculationsProcessedAt: null,
+							eligibilityCheckedAt: null,
+							eligibilityResult: Prisma.DbNull,
+							eligibilityStatus: 'pending',
+							documentVerificationStatus: null,
+							updatedAt: new Date(),
+						},
+					});
+				}
 				return { application: updated, isUpdate: true };
 			}
 		}
