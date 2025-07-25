@@ -100,6 +100,20 @@ export class ApplicationsService {
 			applicationId,
 			base64Fields,
 		);	
+		if(isUpdate){
+			await this.prisma.applications.update({
+				where: { id: applicationId },
+				data: {
+					calculatedAmount: Prisma.DbNull,
+					calculationsProcessedAt: null,
+					eligibilityCheckedAt: null,
+					eligibilityResult: Prisma.DbNull,
+					eligibilityStatus: 'pending',
+					documentVerificationStatus: null,
+					updatedAt: new Date(),
+				},
+			});
+		}
 		// Step 6: Return result
 		return {
 			application,
@@ -167,20 +181,6 @@ export class ApplicationsService {
 						status: 'pending',
 					},
 				});
-				if(updated){
-					await this.prisma.applications.update({
-						where: { id: existing.id },
-						data: {
-							calculatedAmount: Prisma.DbNull,
-							calculationsProcessedAt: null,
-							eligibilityCheckedAt: null,
-							eligibilityResult: Prisma.DbNull,
-							eligibilityStatus: 'pending',
-							documentVerificationStatus: null,
-							updatedAt: new Date(),
-						},
-					});
-				}
 				return { application: updated, isUpdate: true };
 			}
 		}
