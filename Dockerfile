@@ -16,8 +16,8 @@ RUN ls -la prisma/schema.prisma
 RUN npx prisma generate
 
 # Run migrations
-RUN npx prisma migrate dev --name init
-#RUN npx prisma migrate reset --force
+#RUN npx prisma migrate dev --name init
+RUN npx prisma migrate reset --force
 
 # Build project
 RUN npm run build
