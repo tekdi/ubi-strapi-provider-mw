@@ -170,6 +170,27 @@ export class ApplicationsService {
 					where: { applicationId: existing.id },
 				});
 
+				// Create action log entry for resubmit
+				const actionLogEntry = this.getActionLogEntry(
+					{
+						os: normalFields.os || 'Unknown',
+						browser: normalFields.browser || 'Unknown',
+						updatedBy: normalFields.updatedBy || 0,
+						ip: normalFields.ip || 'Unknown',
+						updatedAt: new Date(),
+					},
+					'resubmit',
+					'Application resubmitted with updated data'
+				);
+
+				// Update existing action log or create new one
+				let updatedActionLog;
+				if (existing.actionLog && Array.isArray(existing.actionLog)) {
+					updatedActionLog = [...existing.actionLog, actionLogEntry];
+				} else {
+					updatedActionLog = [actionLogEntry];
+				}
+
 				const updated = await this.prisma.applications.update({
 					where: { id: existing.id },
 					data: {
@@ -179,6 +200,7 @@ export class ApplicationsService {
 						remark: null,
 						updatedAt: new Date(),
 						status: 'pending',
+						actionLog: updatedActionLog,
 					},
 				});
 				return { application: updated, isUpdate: true };
@@ -187,6 +209,20 @@ export class ApplicationsService {
 
 		// Create new application if no existing one found
 		const customerId = uuidv4();
+		
+		// Create action log entry for new submission
+		const actionLogEntry = this.getActionLogEntry(
+			{
+				os: normalFields.os || 'Unknown',
+				browser: normalFields.browser || 'Unknown',
+				updatedBy: normalFields.updatedBy || 0,
+				ip: normalFields.ip || 'Unknown',
+				updatedAt: new Date(),
+			},
+			'submit',
+			'Application submitted successfully'
+		);
+
 		const created = await this.prisma.applications.create({
 			data: {
 				benefitId,
@@ -195,6 +231,7 @@ export class ApplicationsService {
 				bapId,
 				applicationData: JSON.stringify(normalFields),
 				orderId,
+				actionLog: [actionLogEntry],
 			},
 		});
 		return { application: created, isUpdate: false };
