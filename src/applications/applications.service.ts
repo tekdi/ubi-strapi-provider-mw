@@ -42,7 +42,7 @@ export class ApplicationsService {
 		private readonly configService: ConfigService,
 		private readonly aclService: AclService,
 		@Inject('FileStorageService')
-		private readonly fileStorageService: IFileStorageService,
+		private readonly fileStorageService: IFileStorageService
 	) {
 		const url = this.configService.get('ELIGIBILITY_API_URL');
 		if (!url) {
@@ -97,8 +97,21 @@ export class ApplicationsService {
 		const applicationFiles = await this.processBase64Files(
 			applicationId,
 			base64Fields,
-		);
-
+		);	
+		if(isUpdate){
+			await this.prisma.applications.update({
+				where: { id: applicationId },
+				data: {
+					calculatedAmount: Prisma.DbNull,
+					calculationsProcessedAt: null,
+					eligibilityCheckedAt: null,
+					eligibilityResult: Prisma.DbNull,
+					eligibilityStatus: 'pending',
+					documentVerificationStatus: null,
+					updatedAt: new Date(),
+				},
+			});
+		}
 		// Step 6: Return result
 		return {
 			application,
@@ -155,6 +168,27 @@ export class ApplicationsService {
 					where: { applicationId: existing.id },
 				});
 
+				// Create action log entry for resubmit
+				const actionLogEntry = this.getActionLogEntry(
+					{
+						os: normalFields.os || 'Unknown',
+						browser: normalFields.browser || 'Unknown',
+						updatedBy: normalFields.updatedBy || 0,
+						ip: normalFields.ip || 'Unknown',
+						updatedAt: new Date(),
+					},
+					'resubmit',
+					'Application resubmitted with updated data'
+				);
+
+				// Update existing action log or create new one
+				let updatedActionLog;
+				if (existing.actionLog && Array.isArray(existing.actionLog)) {
+					updatedActionLog = [...existing.actionLog, actionLogEntry];
+				} else {
+					updatedActionLog = [actionLogEntry];
+				}
+
 				const updated = await this.prisma.applications.update({
 					where: { id: existing.id },
 					data: {
@@ -164,6 +198,7 @@ export class ApplicationsService {
 						remark: null,
 						updatedAt: new Date(),
 						status: 'pending',
+						actionLog: updatedActionLog,
 					},
 				});
 				return { application: updated, isUpdate: true };
@@ -172,6 +207,20 @@ export class ApplicationsService {
 
 		// Create new application if no existing one found
 		const customerId = uuidv4();
+		
+		// Create action log entry for new submission
+		const actionLogEntry = this.getActionLogEntry(
+			{
+				os: normalFields.os || 'Unknown',
+				browser: normalFields.browser || 'Unknown',
+				updatedBy: normalFields.updatedBy || 0,
+				ip: normalFields.ip || 'Unknown',
+				updatedAt: new Date(),
+			},
+			'submit',
+			'Application submitted successfully'
+		);
+
 		const created = await this.prisma.applications.create({
 			data: {
 				benefitId,
@@ -180,6 +229,7 @@ export class ApplicationsService {
 				bapId,
 				applicationData: JSON.stringify(normalFields),
 				orderId,
+				actionLog: [actionLogEntry],
 			},
 		});
 		return { application: created, isUpdate: false };
@@ -315,7 +365,19 @@ export class ApplicationsService {
 				'You do not have permission to view this application',
 			);
 		}
-
+		
+		try {
+			await this.calculateBenefit(id, authToken);
+		} catch (err) {
+			console.error(`Error checking amount for application ${id}:`, err.message);
+			// Continue with the response even if eligibility check fails
+		}
+		try {
+			await this.checkEligibility(id, req);
+		} catch (eligibilityError) {
+			console.error(`Error checking eligibility for application ${id}:`, eligibilityError.message);
+			// Continue with the response even if eligibility check fails
+		}
 		const application = await this.prisma.applications.findUnique({
 			where: { id },
 			include: {
@@ -781,7 +843,9 @@ export class ApplicationsService {
 	}
 
 	async checkEligibility(applicationId: number, req: Request) {
-		const application = await this.findOne(applicationId, req); // Fetch the application by ID
+		const application = await this.prisma.applications.findUnique({
+			where: { id: applicationId },
+		});
 
 		if (!application) {
 			throw new NotFoundException(
@@ -789,9 +853,8 @@ export class ApplicationsService {
 			);
 		}
 
-		const benefitDefinition = await this.benefitsService.getBenefitsById(
+		const benefitDefinition = await this.benefitsService.getBenefitsByIdStrapi(
 			`${application.benefitId}`,
-			req,
 		);
 		if (!benefitDefinition?.data) {
 			throw new NotFoundException(
