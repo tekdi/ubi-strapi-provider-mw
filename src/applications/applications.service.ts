@@ -861,6 +861,7 @@ export class ApplicationsService {
 				`Benefit with ID ${application.benefitId} not found`,
 			);
 		}
+		
 		const strictCheck = req?.query?.strictCheck === 'true';
 		const formatEligiblityPayload = await this.formatEligibility(
 			benefitDefinition,
@@ -872,6 +873,10 @@ export class ApplicationsService {
 			formatEligiblityPayload?.eligibilityRules,
 			formatEligiblityPayload?.strictCheck,
 		);
+		
+		// Calculate eligibility percentage
+		const eligibilityPercentage = this.calculateEligibilityPercentage(eligibilityResult);
+		
 		let eligibilityStatus = 'ineligible'; // Default status
 		if (eligibilityResult?.eligibleUsers?.length > 0) {
 			eligibilityStatus = 'eligible'; // Set to eligible if any users are eligible default we sending one application here
@@ -882,7 +887,40 @@ export class ApplicationsService {
 			eligibilityCheckedAt: new Date(),
 		});
 
-		return eligibilityResult;
+		return {
+			...eligibilityResult,
+			eligibilityPercentage
+		};
+	}
+
+	/**
+	 * Calculates eligibility percentage based on criteria results
+	 * @param eligibilityResult - The eligibility check result
+	 * @returns number - Percentage of passed criteria (0-100)
+	 */
+	private calculateEligibilityPercentage(eligibilityResult: any): number {
+		try {
+			// Get the first user's criteria results (since we're checking one application at a time)
+			const userDetails = eligibilityResult?.eligibleUsers?.[0]?.details || 
+							   eligibilityResult?.ineligibleUsers?.[0]?.details;
+			
+			if (!userDetails?.criteriaResults || !Array.isArray(userDetails.criteriaResults)) {
+				return 0;
+			}
+
+			const criteriaResults = userDetails.criteriaResults;
+			const totalCriteria = criteriaResults.length;
+			const passedCriteria = criteriaResults.filter(criteria => criteria.passed === true).length;
+			
+			// Calculate percentage
+			const percentage = totalCriteria > 0 ? (passedCriteria / totalCriteria) * 100 : 0;
+			
+			// Round to 2 decimal places
+			return Math.round(percentage * 100) / 100;
+		} catch (error) {
+			console.error('Error calculating eligibility percentage:', error);
+			return 0;
+		}
 	}
 
 	/**
