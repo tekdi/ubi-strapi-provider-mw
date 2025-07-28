@@ -19,7 +19,7 @@ export class ListApplicationsDto {
 	})
 	@IsString()
 	@IsOptional()
-		sortOrder: string;
+		sortOrder?: string;
 
 	@ApiProperty({
 		description: 'sort by application id',

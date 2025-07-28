@@ -318,7 +318,8 @@ export class ApplicationsService {
 				'You do not have permission to view this application',
 			);
 		}
-		const sortBy = listDto.sortBy ?? 'id';
+		const allowedSortFields = ['id', 'createdAt'];
+		const sortBy = allowedSortFields.includes(listDto.sortBy) ? listDto.sortBy : 'id';
 		const sortOrder = (listDto.sortOrder ?? 'DESC').toLowerCase() as
 			| 'asc'
 			| 'desc';
