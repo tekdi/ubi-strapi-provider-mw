@@ -5,6 +5,7 @@ import {
 	forwardRef,
 	BadRequestException,
 	UnauthorizedException,
+	Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
@@ -34,6 +35,8 @@ type ApplicationData = Record<string, any>;
 @Injectable()
 export class ApplicationsService {
 	private readonly eligibility_base_uri: string;
+	private readonly logger = new Logger(ApplicationsService.name);
+	
 	constructor(
 		private readonly prisma: PrismaService,
 		@Inject(forwardRef(() => BenefitsService))
@@ -910,7 +913,7 @@ export class ApplicationsService {
 
 			const criteriaResults = userDetails.criteriaResults;
 			const totalCriteria = criteriaResults.length;
-			const passedCriteria = criteriaResults.filter(criteria => criteria.passed === true).length;
+			const passedCriteria = criteriaResults.filter(criteria => Boolean(criteria.passed)).length;
 			
 			// Calculate percentage
 			const percentage = totalCriteria > 0 ? (passedCriteria / totalCriteria) * 100 : 0;
@@ -918,7 +921,6 @@ export class ApplicationsService {
 			// Round to 2 decimal places
 			return Math.round(percentage * 100) / 100;
 		} catch (error) {
-			console.error('Error calculating eligibility percentage:', error);
 			return 0;
 		}
 	}
