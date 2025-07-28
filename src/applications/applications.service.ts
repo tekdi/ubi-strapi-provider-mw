@@ -902,27 +902,23 @@ export class ApplicationsService {
 	 * @returns number - Percentage of passed criteria (0-100)
 	 */
 	private calculateEligibilityPercentage(eligibilityResult: any): number {
-		try {
-			// Get the first user's criteria results (since we're checking one application at a time)
-			const userDetails = eligibilityResult?.eligibleUsers?.[0]?.details || 
-							   eligibilityResult?.ineligibleUsers?.[0]?.details;
-			
-			if (!userDetails?.criteriaResults || !Array.isArray(userDetails.criteriaResults)) {
-				return 0;
-			}
-
-			const criteriaResults = userDetails.criteriaResults;
-			const totalCriteria = criteriaResults.length;
-			const passedCriteria = criteriaResults.filter(criteria => Boolean(criteria.passed)).length;
-			
-			// Calculate percentage
-			const percentage = totalCriteria > 0 ? (passedCriteria / totalCriteria) * 100 : 0;
-			
-			// Round to 2 decimal places
-			return Math.round(percentage * 100) / 100;
-		} catch (error) {
+		// Get the first user's criteria results (since we're checking one application at a time)
+		const userDetails = eligibilityResult?.eligibleUsers?.[0]?.details || 
+						   eligibilityResult?.ineligibleUsers?.[0]?.details;
+		
+		if (!userDetails?.criteriaResults || !Array.isArray(userDetails.criteriaResults)) {
 			return 0;
 		}
+
+		const criteriaResults = userDetails.criteriaResults;
+		const totalCriteria = criteriaResults.length;
+		const passedCriteria = criteriaResults.filter(criteria => Boolean(criteria.passed)).length;
+		
+		// Calculate percentage
+		const percentage = totalCriteria > 0 ? (passedCriteria / totalCriteria) * 100 : 0;
+		
+		// Round to 2 decimal places
+		return Math.round(percentage * 100) / 100;
 	}
 
 	/**
