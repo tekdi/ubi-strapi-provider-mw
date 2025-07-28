@@ -2,15 +2,68 @@ import {
     ExceptionFilter,
     Catch,
     ArgumentsHost,
-    HttpException
+    HttpException,
+    Logger
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { AxiosError } from 'axios';
 
+interface ErrorResponse {
+    statusCode: number;
+    message: string;
+    timestamp: string;
+    path: string;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+    private readonly logger = new Logger(AllExceptionsFilter.name);
+
     constructor(private readonly apiId?: string) { }
+
+    private getSanitizedErrorResponse(
+        status: number,
+        errorMessage: string,
+        request: Request,
+    ): ErrorResponse {
+        return {
+            statusCode: status,
+            message: errorMessage,
+            timestamp: new Date().toISOString(),
+            path: request.url,
+        };
+    }
+
+    private getSanitizedMessage(status: number, errorMessage: string): string {
+        // Map common error messages to generic ones in production
+        const errorMap: Record<number, string> = {
+            400: 'Bad Request',
+            401: 'Unauthorized',
+            403: 'Forbidden',
+            404: 'Not Found',
+            500: 'Internal Server Error',
+        };
+
+        return errorMap[status] || errorMessage || 'An unexpected error occurred';
+    }
+
+    private logError(
+        exception: Error | HttpException | AxiosError,
+        status: number,
+        request: Request,
+    ): void {
+        const errorDetails = {
+            status,
+            error: exception.message,
+            stack: exception.stack,
+            path: request.url,
+            method: request.method,
+            timestamp: new Date().toISOString(),
+        };
+
+        this.logger.error(errorDetails);
+    }
 
     catch(
         exception: Error | HttpException | AxiosError,
@@ -22,20 +75,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         // Default status code
         let status = 500;
-        let errorMessage : string;
+        let errorMessage: string;
 
         // Handle HttpException
         if (exception instanceof HttpException) {
             status = exception.getStatus();
             errorMessage = (exception.getResponse() as any)?.message ?? exception.message;
         }
-
         // Handle AxiosError
         else if (exception instanceof AxiosError) {
             status = exception.response?.status ?? 500;
             errorMessage = exception.response?.data ?? exception.message ?? 'AXIOS_ERROR';
         }
-        // Handle PrismaClientKnownRequestError
+        // Handle PrismaClientValidationError
         else if (exception instanceof Prisma.PrismaClientValidationError) {
             status = 400;
             errorMessage = exception.message ?? 'PRISMA_CLIENT_ERROR';
@@ -53,21 +105,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
             errorMessage = exception?.message ?? 'INTERNAL_SERVER_ERROR';
         }
 
-        // Log the error
-        console.error({
-            status,
-            errorMessage,
-            path: request.url,
-            method: request.method,
-            timestamp: new Date().toISOString(),
-        });
+        // Log the error with appropriate detail level
+        this.logError(exception, status, request);
 
-        // Send the response
-        return response.status(status).json({
-            statusCode: status,
-            message: errorMessage,
-            path: request.url,
-            timestamp: new Date().toISOString(),
-        });
+        // Send sanitized response
+        const errorResponse = this.getSanitizedErrorResponse(status, errorMessage, request);
+        return response.status(status).json(errorResponse);
     }
 }

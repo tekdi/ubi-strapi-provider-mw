@@ -11,7 +11,6 @@ import { Request } from 'express';
 import * as qs from 'qs';
 import { HttpService } from '@nestjs/axios';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { BENEFIT_CONSTANTS } from 'src/benefits/benefit.constants';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRandomString, getAuthToken, titleCase } from 'src/common/util';
@@ -23,12 +22,16 @@ import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { ConfirmResponseDto } from './dto/confirm-response.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
 import { StatusResponseDto } from './dto/status-response.dto';
+import { SearchResponseDto, TagDto } from './dto/search-response.dto';
+import { SelectRequestDto } from './dto/select-request.dto';
+import { SelectResponseDto } from './dto/select-response.dto';
 
 @Injectable()
 export class BenefitsService {
 	private readonly strapiUrl: string;
 	private readonly strapiToken: string;
 	private readonly providerUrl: string;
+  private readonly domain: string;
 	private readonly bppId: string;
 	private readonly bppUri: string;
 	private bapId: string;
@@ -46,6 +49,7 @@ export class BenefitsService {
 		this.strapiUrl = this.configService.get('STRAPI_URL') ?? '';
 		this.strapiToken = this.configService.get('STRAPI_TOKEN') ?? '';
 		this.providerUrl = this.configService.get('PROVIDER_UBA_UI_URL') ?? '';
+		this.domain = this.configService.get('DOMAIN') ?? '';
 		this.bppId = this.configService.get('BPP_ID') ?? '';
 		this.bppUri = this.configService.get('BPP_URI') ?? '';
 	}
@@ -56,10 +60,11 @@ export class BenefitsService {
 			!this.strapiUrl.trim().length ||
 			!this.providerUrl.trim().length ||
 			!this.bppId.trim().length ||
-			!this.bppUri.trim().length
+			!this.bppUri.trim().length ||
+      !this.domain.trim().length
 		) {
 			throw new InternalServerErrorException(
-				'One or more required environment variables are missing or empty: STRAPI_URL, STRAPI_TOKEN, PROVIDER_UBA_UI_URL, BAP_ID, BAP_URI, BPP_ID, BPP_URI',
+				'One or more required environment variables are missing or empty: STRAPI_URL, STRAPI_TOKEN, PROVIDER_UBA_UI_URL, BPP_ID, BPP_URI, DOMAIN',
 			);
 		}
 	}
@@ -328,16 +333,13 @@ export class BenefitsService {
 		}
 	}
 
-	async searchBenefits(
-		searchRequest: SearchRequestDto,
-		authToken?: string,
-	): Promise<any> {
-		if (searchRequest.context.domain === BENEFIT_CONSTANTS.FINANCE) {
-			let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
+  async searchBenefits(searchRequest: SearchRequestDto, authToken?: string): Promise<SearchResponseDto> {
+    if (searchRequest.context.domain === this.domain) {
+      let url = `${this.strapiUrl}/api/benefits${this.urlExtension}`;
 
-			// if (authToken) {
-			// url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
-			//}
+      // if (authToken) {
+      // url = `${this.strapiUrl}/content-manager/collection-types/api::benefit.benefit?${queryString}`;
+      //}
 
 			this.checkBapIdAndUri(
 				searchRequest?.context?.bap_id,
@@ -350,14 +352,15 @@ export class BenefitsService {
 				},
 			});
 
-			let mappedResponse;
+      let mappedResponse = new SearchResponseDto();
 
-			if (response?.data) {
-				mappedResponse = await this.transformScholarshipsToOnestFormat(
-					response?.data?.data,
-					'on_search',
-				);
-			}
+      if (response?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          searchRequest,
+          response?.data?.data,
+          'on_search',
+        );
+      }
 
 			return mappedResponse;
 		}
@@ -365,19 +368,20 @@ export class BenefitsService {
 		throw new BadRequestException('Invalid domain provided');
 	}
 
-	async selectBenefitsById(body: any): Promise<any> {
+	async selectBenefitsById(body: SelectRequestDto): Promise<SelectResponseDto> {
 		this.checkBapIdAndUri(body?.context?.bap_id, body?.context?.bap_uri);
 		try {
 			let id = body.message.order.items[0].id;
 
-			const response = await this.getBenefitsByIdStrapi(id);
-			let mappedResponse;
-			if (response?.data) {
-				mappedResponse = await this.transformScholarshipsToOnestFormat(
-					[response?.data?.data],
-					'on_select',
-				);
-			}
+      const response = await this.getBenefitsByIdStrapi(id);
+      let mappedResponse;
+      if (response?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          body,
+          [response?.data?.data],
+          'on_select',
+        );
+      }
 
 			return mappedResponse;
 		} catch (error) {
@@ -407,12 +411,13 @@ export class BenefitsService {
 
 			let mappedResponse;
 
-			if (benefitData?.data) {
-				mappedResponse = await this.transformScholarshipsToOnestFormat(
-					[benefitData?.data?.data],
-					'on_init',
-				);
-			}
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          selectDto,
+          [benefitData?.data?.data],
+          'on_init',
+        );
+      }
 
 			const xinput = {
 				head: {
@@ -483,13 +488,14 @@ export class BenefitsService {
 			}
 			const benefitData = await this.getBenefitsByIdStrapi(benefit.benefitId); // from strapi
 
-			let mappedResponse;
-			if (benefitData?.data) {
-				mappedResponse = await this.transformScholarshipsToOnestFormat(
-					[benefitData?.data?.data],
-					'on_confirm',
-				);
-			}
+      let mappedResponse;
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          confirmDto,
+          [benefitData?.data?.data],
+          'on_confirm',
+        );
+      }
 
 			// Generate order ID
 			const orderId: string =
@@ -608,93 +614,92 @@ export class BenefitsService {
 				};
 			}
 
-			// Prepare the status object
-			const metadata = {
-				billing: {
-					name: 'N/A',
-					phone: 'N/A',
-					email: 'dummyemail@dummydomain.com',
-					address: 'N/A',
-					organization: {
-						descriptor: {
-							name: 'Onest',
-							code: 'onest.com',
-						},
-						contact: {
-							phone: '+91-8888888888',
-							email: 'scholarships@nammayatri.in',
-						},
-					},
-				},
-				payments: [
-					{
-						params: {
-							bank_code: 'ICICI',
-							bank_account_number: '123456789012',
-							bank_account_name: 'John Doe',
-						},
-						type: 'PRE-ORDER',
-						status: 'PAID',
-						collected_by: 'bpp',
-					},
-				],
-				fulfillments: [
-					{
-						id: 'FULFILL_UNIFIED',
-						type: 'APPLICATION',
-						tracking: false,
-						state: {
-							descriptor: {
-								...statusCode,
-							},
+      // Prepare the status object
+      const metadata = {
+        billing: {
+          name: 'N/A',
+          phone: 'N/A',
+          email: 'dummyemail@dummydomain.com',
+          address: 'N/A',
+          organization: {
+            "descriptor": {
+              "name": "Onest",
+              "code": "onest.com"
+            },
+            "contact": {
+              "phone": "+91-8888888888",
+              "email": "scholarships@nammayatri.in"
+            }
+          },
+        },
+        payments: [
+          {
+            params: {
+              bank_code: 'ICICI',
+              bank_account_number: '123456789012',
+              bank_account_name: 'John Doe',
+            },
+            type: 'PRE-ORDER',
+            status: 'PAID',
+            collected_by: 'bpp',
+          },
+        ],
+        fulfillments: [{
+          id: 'FULFILL_UNIFIED',
+          type: 'APPLICATION',
+          tracking: false,
+          state: {
+            descriptor: {
+              ...statusCode
+            },
+            updated_at: new Date().toISOString(),
+          },
+          agent: {
+            "person": {
+              "name": "Ekstep Foundation SPoc"
+            },
+            "contact": {
+              "email": "ekstepsupport@ekstep.com"
+            },
+          },
+          customer: {
+            "id": "aadhaar:798677675565",
+            "person": {
+              "name": "Jane Doe",
+              "age": "13",
+              "gender": "female"
+            },
+            "contact": {
+              "phone": "+91-9663088848",
+              "email": "jane.doe@example.com"
+            }
+          }
+        }],
+        quote: {
+          price: {
+            currency: 'INR',
+            value: '123',
+          },
+          breakup: [
+            {
+              title: 'Tuition Fee',
+              price: {
+                currency: 'INR',
+                value: '123',
+              },
+            }
+          ]
+        },
+      };
+      let mappedResponse;
+      if (benefitData?.data) {
+        mappedResponse = await this.transformScholarshipsToOnestFormat(
+          statusDto,
+          [benefitData?.data?.data],
+          'on_status',
+        );
 
-							updated_at: new Date().toISOString(),
-						},
-						agent: {
-							person: {
-								name: 'Ekstep Foundation SPoc',
-							},
-							contact: {
-								email: 'ekstepsupport@ekstep.com',
-							},
-						},
-						customer: {
-							id: 'aadhaar:798677675565',
-							person: {
-								name: 'Jane Doe',
-								age: '13',
-								gender: 'female',
-							},
-							contact: {
-								phone: '+91-9663088848',
-								email: 'jane.doe@example.com',
-							},
-						},
-					},
-				],
-				quote: {
-					price: {
-						currency: 'INR',
-						value: '123',
-					},
-					breakup: [
-						{
-							title: 'Tuition Fee',
-							price: {
-								currency: 'INR',
-								value: '123',
-							},
-						},
-					],
-				},
-			};
-			let mappedResponse;
-			if (benefitData?.data) {
-				mappedResponse = await this.transformScholarshipsToOnestFormat(
-					[benefitData?.data?.data],
-					'on_status',
-				);
-			}
+      }
 
 			const { id, descriptor, items, rateable }: any = mappedResponse?.message
 				.catalog.providers?.[0] ?? {
@@ -744,10 +749,10 @@ export class BenefitsService {
 		this.bapUri = bapUri;
 	}
 
-	async transformScholarshipsToOnestFormat(apiResponseArray, action?) {
-		if (!Array.isArray(apiResponseArray)) {
-			throw new Error('Expected an array of benefits');
-		}
+  async transformScholarshipsToOnestFormat(reqData, apiResponseArray: any[], action?) {
+    if (!Array.isArray(apiResponseArray)) {
+      throw new Error('Expected an array of benefits');
+    }
 
 		const items = await Promise.all(
 			apiResponseArray.map(async (benefit) => {
@@ -781,104 +786,105 @@ export class BenefitsService {
 					this.formatApplicationForm(applicationForm),
 				]);
 
-				return {
-					id: documentId,
-					descriptor: {
-						name: title,
-						long_desc: longDescription,
-					},
-					price: {
-						currency: 'INR',
-						value: await this.calculateTotalBenefitValue(benefits), // await here!
-					},
-					time: {
-						range: {
-							start: new Date(applicationOpenDate).toISOString(),
-							end: new Date(applicationCloseDate).toISOString(),
-						},
-					},
-					rateable: false,
-					tags: [
-						eligibilityTags,
-						documentTags,
-						benefitTags,
-						exclusionTags,
-						sponsoringEntitiesTags,
-						applicationFormTags,
-					]
-						.filter(Boolean)
-						.flat(),
-				};
-			}),
-		);
+        return {
+          id: documentId,
+          descriptor: {
+            name: title,
+            long_desc: longDescription,
+          },
+          price: {
+            currency: 'INR',
+            value: await this.calculateTotalBenefitValue(benefits), // await here!
+          },
+          time: {
+            range: {
+              start: new Date(applicationOpenDate).toISOString(),
+              end: new Date(applicationCloseDate).toISOString(),
+            },
+          },
+          rateable: false,
+          tags: [
+            eligibilityTags,
+            documentTags,
+            benefitTags,
+            exclusionTags,
+            sponsoringEntitiesTags,
+            applicationFormTags,
+          ]
+            .filter(Boolean)
+            .flat() as TagDto[],
+        };
+      }),
+    );
 
 		const firstScholarship = apiResponseArray[0];
 
-		return {
-			context: {
-				domain: 'onest:financial-support',
-				action: action,
-				version: '1.1.0',
-				bap_id: this.bapId,
-				bap_uri: this.bapUri,
-				bpp_id: this.bppId,
-				bpp_uri: this.bppUri,
-				transaction_id: uuidv4(),
-				message_id: uuidv4(),
-				timestamp: new Date().toISOString(),
-				ttl: 'PT10M',
-			},
-			message: {
-				catalog: {
-					descriptor: {
-						name: 'Protean DSEP Scholarships and Grants BPP Platform',
-					},
-					providers: [
-						{
-							id: 'PROVIDER_UNIFIED',
-							descriptor: {
-								name:
-									firstScholarship?.providingEntity?.name ?? 'Unknown Provider',
-								short_desc: 'Multiple scholarships offered',
-								images: firstScholarship?.imageUrl
-									? [{ url: firstScholarship.imageUrl }]
-									: [],
-							},
-							categories: [
-								{
-									id: 'CAT_SCHOLARSHIP',
-									descriptor: {
-										code: 'scholarship',
-										name: 'Scholarship',
-									},
-								},
-							],
-							fulfillments: [
-								{
-									id: 'FULFILL_UNIFIED',
-									tracking: false,
-								},
-							],
-							locations: [
-								{
-									id: 'L1',
-									city: {
-										name: 'Pune',
-										code: 'std:020',
-									},
-									state: {
-										name: 'Maharashtra',
-										code: 'MH',
-									},
-								},
-							],
-							items,
-						},
-					],
-				},
-			},
-		};
-	}
+    return {
+      context: {
+        version: '1.1.0',
+        ttl: 'PT10M',
+        ...reqData.context,
+        domain: this.domain,
+        action: action,
+        transaction_id: uuidv4(),
+        message_id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        bap_id: this.bapId,
+        bap_uri: this.bapUri,
+        bpp_id: this.bppId,
+        bpp_uri: this.bppUri,
+      },
+      message: {
+        catalog: {
+          descriptor: {
+            name: 'Protean DSEP Scholarships and Grants BPP Platform',
+          },
+          providers: [
+            {
+              id: 'PROVIDER_UNIFIED',
+              descriptor: {
+                name:
+                  firstScholarship?.providingEntity?.name ?? 'Unknown Provider',
+                short_desc: 'Multiple scholarships offered',
+                images: firstScholarship?.imageUrl
+                  ? [firstScholarship.imageUrl]
+                  : [],
+              },
+              categories: [
+                {
+                  id: 'CAT_SCHOLARSHIP',
+                  descriptor: {
+                    code: 'scholarship',
+                    name: 'Scholarship',
+                  },
+                },
+              ],
+              fulfillments: [
+                {
+                  id: 'FULFILL_UNIFIED',
+                  tracking: false,
+                },
+              ],
+              locations: [
+                {
+                  id: 'L1',
+                  city: {
+                    name: 'Pune',
+                    code: 'std:020',
+                  },
+                  state: {
+                    name: 'Maharashtra',
+                    code: 'MH',
+                  },
+                },
+              ],
+              items,
+            },
+          ],
+        },
+      },
+    };
+  }
 
 	// Calculate a rough total of monetary benefits if known
 	async calculateTotalBenefitValue(benefits) {
