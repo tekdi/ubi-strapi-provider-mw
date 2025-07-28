@@ -318,10 +318,17 @@ export class ApplicationsService {
 				'You do not have permission to view this application',
 			);
 		}
-
+		const sortBy = listDto.sortBy ?? 'id';
+		const sortOrder = (listDto.sortOrder ?? 'DESC').toLowerCase() as
+			| 'asc'
+			| 'desc';
+		const where = {
+			benefitId: listDto.benefitId,
+		};
 		const applications = await this.prisma.applications.findMany({
-			where: {
-				benefitId: listDto.benefitId,
+			where,
+			orderBy: {
+				[sortBy]: sortOrder,
 			},
 		});
 
