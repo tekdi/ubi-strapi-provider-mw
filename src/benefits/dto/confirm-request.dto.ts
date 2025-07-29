@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-
+import { BENEFIT_CONSTANTS } from '../benefit.constants';
 class LocationDto {
   @ApiProperty({ description: 'City details', example: { name: 'Bangalore', code: 'std:080' } })
   @IsNotEmpty()
@@ -13,7 +13,7 @@ class LocationDto {
 }
 
 class ConfirmContextDto {
-  @ApiProperty({ description: 'Domain of the request', example: 'onest:financial-support' })
+  @ApiProperty({ description: 'Domain of the request', example: BENEFIT_CONSTANTS.FINANCE })
   @IsString()
   @IsNotEmpty()
   domain: string;
