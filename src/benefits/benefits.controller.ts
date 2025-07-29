@@ -19,6 +19,7 @@ import { ConfirmRequestDto } from './dto/confirm-request.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { SearchBenefitsDto } from './dto/search-benefits.dto';
 import { StatusRequestDto } from './dto/status-request.dto';
+import { SelectRequestDto } from './dto/select-request.dto';
 
 @UseFilters(new AllExceptionsFilter())
 @ApiTags('Benefits') // Grouping the APIs under the "Benefits" tag in Swagger
@@ -66,7 +67,11 @@ export class BenefitsController {
   })
   @Post('dsep/select')
   @HttpCode(HttpStatus.OK)
-  selectBenefitsNetwork(@Body() body): any {
+  @ApiOperation({
+    summary: 'Select Benefits',
+    description: 'Select benefits based on the provided data.',
+  })
+  selectBenefitsNetwork(@Body() body: SelectRequestDto): any {
     return this.benefitsService.selectBenefitsById(body);
   }
 

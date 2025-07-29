@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { BENEFIT_CONSTANTS } from '../benefit.constants';
 
 class LocationDto {
   @ApiProperty({ example: { name: 'India', code: 'IND' } })
@@ -9,7 +10,7 @@ class LocationDto {
 }
 
 class ContextDto {
-  @ApiProperty({ example: 'onest:financial-support' })
+  @ApiProperty({ example: BENEFIT_CONSTANTS.FINANCE })
   domain: string;
 
   @ApiProperty({ example: 'search' })
