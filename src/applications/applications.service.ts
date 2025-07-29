@@ -4,8 +4,7 @@ import {
 	NotFoundException,
 	forwardRef,
 	BadRequestException,
-	UnauthorizedException,
-	Logger,
+	UnauthorizedException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma, ApplicationFiles } from '@prisma/client';
@@ -35,7 +34,6 @@ type ApplicationData = Record<string, any>;
 @Injectable()
 export class ApplicationsService {
 	private readonly eligibility_base_uri: string;
-	private readonly logger = new Logger(ApplicationsService.name);
 	
 	constructor(
 		private readonly prisma: PrismaService,
