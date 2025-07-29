@@ -877,8 +877,15 @@ export class ApplicationsService {
 			formatEligiblityPayload?.strictCheck,
 		);
 		
-		// Calculate eligibility percentage
+		// Calculate eligibility percentage and add it to userDetails
 		const eligibilityPercentage = this.calculateEligibilityPercentage(eligibilityResult);
+		
+		// Add percentage to the first user's details
+		if (eligibilityResult?.eligibleUsers?.[0]?.details) {
+			eligibilityResult.eligibleUsers[0].details.eligibilityPercentage = eligibilityPercentage;
+		} else if (eligibilityResult?.ineligibleUsers?.[0]?.details) {
+			eligibilityResult.ineligibleUsers[0].details.eligibilityPercentage = eligibilityPercentage;
+		}
 		
 		let eligibilityStatus = 'ineligible'; // Default status
 		if (eligibilityResult?.eligibleUsers?.length > 0) {
@@ -890,10 +897,7 @@ export class ApplicationsService {
 			eligibilityCheckedAt: new Date(),
 		});
 
-		return {
-			...eligibilityResult,
-			eligibilityPercentage
-		};
+		return eligibilityResult;
 	}
 
 	/**
