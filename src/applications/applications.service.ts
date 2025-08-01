@@ -70,7 +70,7 @@ export class ApplicationsService {
 		return `${basePath}/${certificateType}/${fileName}`;
 	}
 
-	// Create a new application
+	// Create a new application (new VC documents format only)
 	async create(data: any) {
 		// Step 1: Process new VC documents format only
 		const { vcDocuments, applicationFields } = this.processNewFormat(data);
@@ -93,7 +93,7 @@ export class ApplicationsService {
 		// Step 4: Determine whether it was an update or a new creation
 		const applicationId = application.id;
 
-		// Step 5: Handle VC document uploads
+		// Step 5: Handle VC document uploads (can be empty array)
 		const applicationFiles = await this.processApplicationFiles(
 			applicationId,
 			vcDocuments,
@@ -125,18 +125,18 @@ export class ApplicationsService {
 	}
 
 	/**
-	 * Processes new VC documents format (required)
+	 * Processes new VC documents format (vc_documents array can be empty)
 	 */
 	private processNewFormat(data: any) {
 		const vcDocuments: { key: string; value: string; metadata: any }[] = [];
 		const applicationFields: Record<string, any> = {};
 
-		// Require vc_documents for new format
-		if (!data.vc_documents || !Array.isArray(data.vc_documents) || data.vc_documents.length === 0) {
-			throw new Error('vc_documents array is required and must contain at least one document');
+		// Require vc_documents to be an array (can be empty)
+		if (!data.vc_documents || !Array.isArray(data.vc_documents)) {
+			throw new Error('vc_documents must be provided as an array (can be empty)');
 		}
 
-		// Extract vc_documents
+		// Extract vc_documents if any are provided
 		data.vc_documents.forEach((doc: any, index: number) => {
 			if (!doc.document_content || !doc.document_content.startsWith('base64,')) {
 				throw new Error(`vc_documents[${index}]: document_content must be provided and start with "base64,"`);
