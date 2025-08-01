@@ -138,7 +138,7 @@ export class ApplicationsService {
 
 		// Extract vc_documents if any are provided
 		data.vc_documents.forEach((doc: any, index: number) => {
-			if (!doc.document_content || !doc.document_content.startsWith('base64,')) {
+			if (!doc.document_content?.startsWith('base64,')) {
 				throw new Error(`vc_documents[${index}]: document_content must be provided and start with "base64,"`);
 			}
 			if (!doc.document_type || !doc.document_subtype) {
