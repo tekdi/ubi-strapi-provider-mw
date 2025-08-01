@@ -72,8 +72,8 @@ export class ApplicationsService {
 
 	// Create a new application
 	async create(data: any) {
-		// Step 1: Split fields into base64-encoded files and normal data
-		const { base64Fields, normalFields } = this.splitFields(data);
+		// Step 1: Process new VC documents format only
+		const { vcDocuments, applicationFields } = this.processNewFormat(data);
 
 		// Step 2: Extract required identifiers
 		const benefitId = data.benefitId;
@@ -87,18 +87,18 @@ export class ApplicationsService {
 			orderId,
 			benefitId,
 			bapId,
-			normalFields,
+			normalFields: applicationFields,
 		});
 
 		// Step 4: Determine whether it was an update or a new creation
-
 		const applicationId = application.id;
 
-		// Step 5: Handle file uploads
-		const applicationFiles = await this.processBase64Files(
+		// Step 5: Handle VC document uploads
+		const applicationFiles = await this.processApplicationFiles(
 			applicationId,
-			base64Fields,
+			vcDocuments,
 		);	
+		
 		if(isUpdate){
 			await this.prisma.applications.update({
 				where: { id: applicationId },
@@ -113,6 +113,7 @@ export class ApplicationsService {
 				},
 			});
 		}
+		
 		// Step 6: Return result
 		return {
 			application,
@@ -124,24 +125,54 @@ export class ApplicationsService {
 	}
 
 	/**
-	 * Splits the incoming data into two parts:
-	 * - base64Fields: for documents that need to be uploaded
-	 * - normalFields: other application data
+	 * Processes new VC documents format (required)
 	 */
-	private splitFields(data: any) {
-		const base64Fields: { key: string; value: string }[] = [];
-		const normalFields: Record<string, any> = {};
+	private processNewFormat(data: any) {
+		const vcDocuments: { key: string; value: string; metadata: any }[] = [];
+		const applicationFields: Record<string, any> = {};
 
+		// Require vc_documents for new format
+		if (!data.vc_documents || !Array.isArray(data.vc_documents) || data.vc_documents.length === 0) {
+			throw new Error('vc_documents array is required and must contain at least one document');
+		}
+
+		// Extract vc_documents
+		data.vc_documents.forEach((doc: any, index: number) => {
+			if (!doc.document_content || !doc.document_content.startsWith('base64,')) {
+				throw new Error(`vc_documents[${index}]: document_content must be provided and start with "base64,"`);
+			}
+			if (!doc.document_type || !doc.document_subtype) {
+				throw new Error(`vc_documents[${index}]: document_type and document_subtype are required`);
+			}
+
+			vcDocuments.push({
+				key: `vc_document_${index}`,
+				value: doc.document_content,
+				metadata: {
+					document_submission_reason: doc.document_submission_reason,
+					document_subtype: doc.document_subtype,
+					document_type: doc.document_type,
+				}
+			});
+		});
+
+		// Extract all other fields as application data (excluding control fields)
+		const excludeFields = ['vc_documents', 'benefitId', 'orderId', 'bapId', 'status', 'applicationData', 'customerId'];
 		for (const [key, value] of Object.entries(data)) {
-			if (typeof value === 'string' && value.startsWith('base64,')) {
-				base64Fields.push({ key, value });
-			} else {
-				normalFields[key] = value;
+			if (!excludeFields.includes(key) && !key.startsWith('_') && value !== undefined) {
+				applicationFields[key] = value;
 			}
 		}
 
-		return { base64Fields, normalFields };
+		// If applicationData is provided, merge it with extracted fields
+		if (data.applicationData && typeof data.applicationData === 'object') {
+			Object.assign(applicationFields, data.applicationData);
+		}
+
+		return { vcDocuments, applicationFields };
 	}
+
+
 	/**
 	 * Checks if an application with the given orderId exists.
 	 * - If yes: updates the application and deletes old files
@@ -179,7 +210,7 @@ export class ApplicationsService {
 						updatedAt: new Date(),
 					},
 					'resubmit',
-					'Application resubmitted with updated data'
+					null
 				);
 
 				// Update existing action log or create new one
@@ -219,7 +250,7 @@ export class ApplicationsService {
 				updatedAt: new Date(),
 			},
 			'submit',
-			'Application submitted successfully'
+			null
 		);
 
 		const created = await this.prisma.applications.create({
@@ -236,18 +267,18 @@ export class ApplicationsService {
 		return { application: created, isUpdate: false };
 	}
 	/**
-	 * Handles processing of base64 files:
+	 * Handles processing of application files (both legacy base64 and new VC documents):
 	 * - Decodes content
 	 * - Uploads to storage
-	 * - Saves record in database
+	 * - Saves record in database with proper metadata
 	 */
-	private async processBase64Files(
+	private async processApplicationFiles(
 		applicationId: number,
-		base64Fields: { key: string; value: string }[],
+		base64Fields: { key: string; value: string; metadata?: any }[],
 	) {
 		const applicationFiles: ApplicationFiles[] = [];
 
-		for (const { key, value } of base64Fields) {
+		for (const { key, value, metadata } of base64Fields) {
 			const decodedContent = this.decodeBase64(value);
 			const filePathWithPrefix = this.buildFilePath(String(applicationId), key);
 
@@ -271,15 +302,25 @@ export class ApplicationsService {
 			}
 
 			try {
+				// Prepare database record data
+				const fileData: any = {
+					storage: process.env.FILE_STORAGE_PROVIDER ?? 'local',
+					filePath: storageKey,
+					applicationId,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				};
+
+				// Add VC document metadata if available
+				if (metadata) {
+					fileData.documentSubmissionReason = metadata.document_submission_reason;
+					fileData.documentSubtype = metadata.document_subtype;
+					fileData.documentType = metadata.document_type;
+				}
+
 				// Save uploaded file info in applicationFiles table
 				const appFile = await this.prisma.applicationFiles.create({
-					data: {
-						storage: process.env.FILE_STORAGE_PROVIDER ?? 'local',
-						filePath: storageKey,
-						applicationId,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					},
+					data: fileData,
 				});
 				applicationFiles.push(appFile);
 			} catch (err) {
@@ -527,7 +568,7 @@ export class ApplicationsService {
 	getActionLogEntry(
 		actionLog: UpdateApplicationActionLogDto,
 		status: string,
-		remark: string,
+		remark: string|null,
 	) {
 		return JSON.stringify({
 			...actionLog,
