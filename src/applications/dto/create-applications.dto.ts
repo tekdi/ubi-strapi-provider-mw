@@ -111,7 +111,7 @@ export class CreateApplicationsDto {
   @IsOptional()
   updatedBy?: number;
 
-  @ApiPropertyOptional({ description: 'IP address', example: '192.168.1.1' })
+  @ApiPropertyOptional({ description: 'IP address', example: '203.0.113.1' })
   @IsOptional()
   @IsString()
   ip?: string;
