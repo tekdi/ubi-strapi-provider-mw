@@ -17,6 +17,7 @@ export class VcDocumentDto {
   })
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ message: 'document_submission_reason cannot be empty' })
   document_submission_reason: string[];
 
   @ApiProperty({
@@ -107,9 +108,9 @@ export class CreateApplicationsDto {
   @IsString()
   browser?: string;
 
-  @ApiPropertyOptional({ description: 'Updated by user ID', example: 1 })
+  @ApiPropertyOptional({ description: 'Updated by user ID', example: '1' })
   @IsOptional()
-  updatedBy?: number;
+  updatedBy?: number|string;
 
   @ApiPropertyOptional({ description: 'IP address', example: '203.0.113.1' })
   @IsOptional()
