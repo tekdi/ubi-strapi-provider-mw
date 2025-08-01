@@ -60,7 +60,7 @@ export class ApplicationsController {
 
 			// Validate each VC document if any are provided
 			for (const [index, doc] of data.vc_documents.entries()) {
-				if (!doc.document_content || !doc.document_content.startsWith('base64,')) {
+				if (!doc.document_content?.startsWith('base64,')) {
 					throw new BadRequestException(
 						`vc_documents[${index}]: document_content must be provided and start with "base64,"`
 					);
@@ -70,7 +70,7 @@ export class ApplicationsController {
 						`vc_documents[${index}]: document_type and document_subtype are required`
 					);
 				}
-				if (!doc.document_submission_reason || !Array.isArray(doc.document_submission_reason)) {
+				if (!doc.document_submission_reason || !Array.isArray(doc.document_submission_reason) || doc.document_submission_reason.length === 0) {
 					throw new BadRequestException(
 						`vc_documents[${index}]: document_submission_reason must be a non-empty array`
 					);
