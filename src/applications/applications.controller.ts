@@ -50,7 +50,42 @@ export class ApplicationsController {
 	@ApiResponse(ApplicationsApiDocs.create.responses.success)
 	@ApiResponse(ApplicationsApiDocs.create.responses.badRequest)
 	async create(@Body() data: CreateApplicationsDto) {
-		return this.applicationsService.create(data);
+		try {
+			// Validate that vc_documents is provided as an array (can be empty)
+			if (!data.vc_documents || !Array.isArray(data.vc_documents)) {
+				throw new BadRequestException(
+					'vc_documents must be provided as an array (can be empty)'
+				);
+			}
+
+			// Validate each VC document if any are provided
+			for (const [index, doc] of data.vc_documents.entries()) {
+				if (!doc.document_content || !doc.document_content.startsWith('base64,')) {
+					throw new BadRequestException(
+						`vc_documents[${index}]: document_content must be provided and start with "base64,"`
+					);
+				}
+				if (!doc.document_type || !doc.document_subtype) {
+					throw new BadRequestException(
+						`vc_documents[${index}]: document_type and document_subtype are required`
+					);
+				}
+				if (!doc.document_submission_reason || !Array.isArray(doc.document_submission_reason)) {
+					throw new BadRequestException(
+						`vc_documents[${index}]: document_submission_reason must be a non-empty array`
+					);
+				}
+			}
+
+			return this.applicationsService.create(data);
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new BadRequestException(
+				`Failed to create application: ${error.message}`
+			);
+		}
 	}
 
   @Get()
