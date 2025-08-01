@@ -178,8 +178,8 @@ export class ApplicationsService {
 						ip: normalFields.ip || 'Unknown',
 						updatedAt: new Date(),
 					},
-					'resubmit',
-					'Application resubmitted with updated data'
+					'application_resubmitted',
+					null
 				);
 
 				// Update existing action log or create new one
@@ -218,8 +218,8 @@ export class ApplicationsService {
 				ip: normalFields.ip || 'Unknown',
 				updatedAt: new Date(),
 			},
-			'submit',
-			'Application submitted successfully'
+			'application_submitted',
+			null
 		);
 
 		const created = await this.prisma.applications.create({
@@ -527,7 +527,7 @@ export class ApplicationsService {
 	getActionLogEntry(
 		actionLog: UpdateApplicationActionLogDto,
 		status: string,
-		remark: string,
+		remark: string | null,
 	) {
 		return JSON.stringify({
 			...actionLog,
