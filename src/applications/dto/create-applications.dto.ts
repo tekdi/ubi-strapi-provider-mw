@@ -85,16 +85,16 @@ export class CreateApplicationsDto {
   @IsString()
   orderId?: string;
 
-  // VC Documents array - primary structure for new format
-  @ApiPropertyOptional({
-    description: 'Array of VC documents with metadata',
-    type: [VcDocumentDto]
+  // VC Documents array - required array that can be empty
+  @ApiProperty({
+    description: 'Array of VC documents with metadata (can be empty array)',
+    type: [VcDocumentDto],
+    example: []
   })
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => VcDocumentDto)
-  vc_documents?: VcDocumentDto[];
+  vc_documents: VcDocumentDto[];
 
   // Metadata fields
   @ApiPropertyOptional({ description: 'OS information', example: 'Windows 10' })
