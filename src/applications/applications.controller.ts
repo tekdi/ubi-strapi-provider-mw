@@ -51,51 +51,7 @@ export class ApplicationsController {
 	@ApiResponse(ApplicationsApiDocs.create.responses.badRequest)
 	async create(@Body() data: CreateApplicationsDto) {
 		try {
-			// Validate that vc_documents is provided as an array (can be empty)
-			if (!data.vc_documents || !Array.isArray(data.vc_documents)) {
-				throw new BadRequestException(
-					'vc_documents must be provided as an array (can be empty)'
-				);
-			}
-
-			// Validate each VC document if any are provided
-			for (const [index, doc] of data.vc_documents.entries()) {
-				if (!doc.document_content?.startsWith('base64,')) {
-					throw new BadRequestException(
-						`vc_documents[${index}]: document_content must be provided and start with "base64,"`
-					);
-				}
-				if (!doc.document_type || !doc.document_subtype) {
-					throw new BadRequestException(
-						`vc_documents[${index}]: document_type and document_subtype are required`
-					);
-				}
-				
-				// Handle document_submission_reason as either array or JSON string
-				let submissionReasons: string[] = [];
-				if (typeof doc.document_submission_reason === 'string') {
-					try {
-						submissionReasons = JSON.parse(doc.document_submission_reason);
-					} catch (error) {
-						throw new BadRequestException(
-							`vc_documents[${index}]: document_submission_reason must be a valid JSON array or array`
-						);
-					}
-				} else if (Array.isArray(doc.document_submission_reason)) {
-					submissionReasons = doc.document_submission_reason;
-				}
-				
-				if (!Array.isArray(submissionReasons) || submissionReasons.length === 0) {
-					throw new BadRequestException(
-						`vc_documents[${index}]: document_submission_reason must be a non-empty array`
-					);
-				}
-				
-				// Store the parsed array back to the document for consistent processing
-				doc.document_submission_reason = submissionReasons;
-			}
-
-		return this.applicationsService.create(data);
+			return this.applicationsService.create(data);
 		} catch (error) {
 			if (error instanceof BadRequestException) {
 				throw error;

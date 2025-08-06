@@ -72,17 +72,20 @@ export class ApplicationsService {
 
 	// Create a new application (new VC documents format only)
 	async create(data: any) {
-		// Step 1: Process new VC documents format only
+		// Step 1: Validate VC documents structure and content
+		this.validateVcDocuments(data);
+
+		// Step 2: Process new VC documents format only
 		const { vcDocuments, applicationFields } = this.processNewFormat(data);
 
-		// Step 2: Extract required identifiers
+		// Step 3: Extract required identifiers
 		const benefitId = data.benefitId;
-		if (!benefitId) throw new Error('benefitId is required');
+		if (!benefitId) throw new BadRequestException('benefitId is required');
 
 		const bapId = data.bapId ?? data.bapid ?? data.bapID ?? null;
 		const orderId = data.orderId ?? null;
 
-		// Step 3: Either create a new application or update existing one if orderId is matched
+		// Step 4: Either create a new application or update existing one if orderId is matched
 		const { application, isUpdate } = await this.findOrCreateApplication({
 			orderId,
 			benefitId,
@@ -90,10 +93,10 @@ export class ApplicationsService {
 			normalFields: applicationFields,
 		});
 
-		// Step 4: Determine whether it was an update or a new creation
+		// Step 5: Determine whether it was an update or a new creation
 		const applicationId = application.id;
 
-		// Step 5: Handle VC document uploads (can be empty array)
+		// Step 6: Handle VC document uploads (can be empty array)
 		const applicationFiles = await this.processApplicationFiles(
 			applicationId,
 			vcDocuments,
@@ -114,7 +117,7 @@ export class ApplicationsService {
 			});
 		}
 		
-		// Step 6: Return result
+		// Step 7: Return result
 		return {
 			application,
 			applicationFiles,
@@ -125,33 +128,70 @@ export class ApplicationsService {
 	}
 
 	/**
+	 * Validates VC documents structure and content
+	 */
+	private validateVcDocuments(data: any) {
+		// Validate that vc_documents is provided as an array (can be empty)
+		if (!data.vc_documents || !Array.isArray(data.vc_documents)) {
+			throw new BadRequestException(
+				'vc_documents must be provided as an array (can be empty)'
+			);
+		}
+
+		// Validate each VC document if any are provided
+		for (const [index, doc] of data.vc_documents.entries()) {
+			if (!doc.document_content?.startsWith('base64,')) {
+				throw new BadRequestException(
+					`vc_documents[${index}]: document_content must be provided and start with "base64,"`
+				);
+			}
+			if (!doc.document_type || !doc.document_subtype) {
+				throw new BadRequestException(
+					`vc_documents[${index}]: document_type and document_subtype are required`
+				);
+			}
+			
+			// Handle document_submission_reason as either array or JSON string
+			let submissionReasons: string[] = [];
+			if (typeof doc.document_submission_reason === 'string') {
+				try {
+					submissionReasons = JSON.parse(doc.document_submission_reason);
+				} catch (error) {
+					throw new BadRequestException(
+						`vc_documents[${index}]: document_submission_reason must be a valid JSON array or array`
+					);
+				}
+			} else if (Array.isArray(doc.document_submission_reason)) {
+				submissionReasons = doc.document_submission_reason;
+			}
+			
+			if (!Array.isArray(submissionReasons) || submissionReasons.length === 0) {
+				throw new BadRequestException(
+					`vc_documents[${index}]: document_submission_reason must be a non-empty array`
+				);
+			}
+			
+			// Store the parsed array back to the document for consistent processing
+			doc.document_submission_reason = submissionReasons;
+		}
+	}
+
+	/**
 	 * Processes new VC documents format (vc_documents array can be empty)
 	 */
 	private processNewFormat(data: any) {
 		const vcDocuments: { key: string; value: string; metadata: any }[] = [];
 		const applicationFields: Record<string, any> = {};
 
-		// Require vc_documents to be an array (can be empty)
-		if (!data.vc_documents || !Array.isArray(data.vc_documents)) {
-			throw new Error('vc_documents must be provided as an array (can be empty)');
-		}
-
-		// Extract vc_documents if any are provided
+		// Extract vc_documents if any are provided (validation already done)
 		data.vc_documents.forEach((doc: any, index: number) => {
-			if (!doc.document_content?.startsWith('base64,')) {
-				throw new Error(`vc_documents[${index}]: document_content must be provided and start with "base64,"`);
-			}
-			if (!doc.document_type || !doc.document_subtype) {
-				throw new Error(`vc_documents[${index}]: document_type and document_subtype are required`);
-			}
-
 			// Handle document_submission_reason conversion from string to array if needed
 			let submissionReasons = doc.document_submission_reason;
 			if (typeof submissionReasons === 'string') {
 				try {
 					submissionReasons = JSON.parse(submissionReasons);
 				} catch (error) {
-					throw new Error(`vc_documents[${index}]: document_submission_reason must be a valid JSON array`);
+					throw new BadRequestException(`vc_documents[${index}]: document_submission_reason must be a valid JSON array`);
 				}
 			}
 
