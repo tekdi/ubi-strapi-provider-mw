@@ -209,7 +209,7 @@ export class ApplicationsService {
 						ip: normalFields.ip || 'Unknown',
 						updatedAt: new Date(),
 					},
-					'resubmit',
+					'application_resubmitted',
 					null
 				);
 
@@ -249,7 +249,7 @@ export class ApplicationsService {
 				ip: normalFields.ip || 'Unknown',
 				updatedAt: new Date(),
 			},
-			'submit',
+			'application_submitted',
 			null
 		);
 
@@ -568,7 +568,7 @@ export class ApplicationsService {
 	getActionLogEntry(
 		actionLog: UpdateApplicationActionLogDto,
 		status: string,
-		remark: string|null,
+		remark: string | null,
 	) {
 		return JSON.stringify({
 			...actionLog,
