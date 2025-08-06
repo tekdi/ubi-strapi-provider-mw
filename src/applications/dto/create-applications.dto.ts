@@ -12,13 +12,11 @@ import { Type } from 'class-transformer';
 // VC Document structure interface
 export class VcDocumentDto {
   @ApiProperty({
-    description: 'Array of reasons for document submission',
+    description: 'Array of reasons for document submission (can be JSON string or array)',
     example: ['disabilityType', 'disabilityRange']
   })
-  @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty({ message: 'document_submission_reason cannot be empty' })
-  document_submission_reason: string[];
+  @IsNotEmpty()
+  document_submission_reason: string[] | string;
 
   @ApiProperty({
     description: 'Document subtype classification',

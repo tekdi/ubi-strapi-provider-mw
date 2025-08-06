@@ -145,11 +145,21 @@ export class ApplicationsService {
 				throw new Error(`vc_documents[${index}]: document_type and document_subtype are required`);
 			}
 
+			// Handle document_submission_reason conversion from string to array if needed
+			let submissionReasons = doc.document_submission_reason;
+			if (typeof submissionReasons === 'string') {
+				try {
+					submissionReasons = JSON.parse(submissionReasons);
+				} catch (error) {
+					throw new Error(`vc_documents[${index}]: document_submission_reason must be a valid JSON array`);
+				}
+			}
+
 			vcDocuments.push({
 				key: `vc_document_${index}`,
 				value: doc.document_content,
 				metadata: {
-					document_submission_reason: doc.document_submission_reason,
+					document_submission_reason: submissionReasons,
 					document_subtype: doc.document_subtype,
 					document_type: doc.document_type,
 				}

@@ -70,14 +70,32 @@ export class ApplicationsController {
 						`vc_documents[${index}]: document_type and document_subtype are required`
 					);
 				}
-				if (!doc.document_submission_reason || !Array.isArray(doc.document_submission_reason) || doc.document_submission_reason.length === 0) {
+				
+				// Handle document_submission_reason as either array or JSON string
+				let submissionReasons: string[] = [];
+				if (typeof doc.document_submission_reason === 'string') {
+					try {
+						submissionReasons = JSON.parse(doc.document_submission_reason);
+					} catch (error) {
+						throw new BadRequestException(
+							`vc_documents[${index}]: document_submission_reason must be a valid JSON array or array`
+						);
+					}
+				} else if (Array.isArray(doc.document_submission_reason)) {
+					submissionReasons = doc.document_submission_reason;
+				}
+				
+				if (!Array.isArray(submissionReasons) || submissionReasons.length === 0) {
 					throw new BadRequestException(
 						`vc_documents[${index}]: document_submission_reason must be a non-empty array`
 					);
 				}
+				
+				// Store the parsed array back to the document for consistent processing
+				doc.document_submission_reason = submissionReasons;
 			}
 
-			return this.applicationsService.create(data);
+		return this.applicationsService.create(data);
 		} catch (error) {
 			if (error instanceof BadRequestException) {
 				throw error;
