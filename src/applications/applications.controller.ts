@@ -50,16 +50,7 @@ export class ApplicationsController {
 	@ApiResponse(ApplicationsApiDocs.create.responses.success)
 	@ApiResponse(ApplicationsApiDocs.create.responses.badRequest)
 	async create(@Body() data: CreateApplicationsDto) {
-		try {
-			return this.applicationsService.create(data);
-		} catch (error) {
-			if (error instanceof BadRequestException) {
-				throw error;
-			}
-			throw new BadRequestException(
-				`Failed to create application: ${error.message}`
-			);
-		}
+		return this.applicationsService.create(data);
 	}
 
   @Get()
