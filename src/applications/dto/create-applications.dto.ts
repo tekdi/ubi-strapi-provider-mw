@@ -4,10 +4,11 @@ import {
   IsObject, 
   IsOptional, 
   IsArray, 
-  ValidateNested
+  ValidateNested,
+  Matches
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 // VC Document structure interface
 export class VcDocumentDto {
@@ -15,8 +16,21 @@ export class VcDocumentDto {
     description: 'Array of reasons for document submission (can be JSON string or array)',
     example: ['disabilityType', 'disabilityRange']
   })
+  @Transform(({ value }) => {
+    // Transform JSON string to array if needed
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @IsString({ each: true })
   @IsNotEmpty()
-  document_submission_reason: string[] | string;
+  document_submission_reason: string[];
 
   @ApiProperty({
     description: 'Document subtype classification',
@@ -40,6 +54,9 @@ export class VcDocumentDto {
   })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^base64,/, {
+    message: 'document_content must start with "base64,"'
+  })
   document_content: string;
 }
 
